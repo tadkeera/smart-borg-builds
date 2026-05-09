@@ -1,0 +1,7 @@
+project_id = "owkbqpwfbmpypzehjvuh"
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.admin-action]
+verify_jwt = false

@@ -25,9 +25,8 @@ function WhatsAppPage() {
   const webhookUrl = `https://${projectId}.supabase.co/functions/v1/whatsapp-webhook`;
 
   const load = async () => {
-    if (!session?.password) return;
     try {
-      const res: any = await adminAction(session.password, "settings.get", {});
+      const res: any = await adminAction("settings.get", {});
       const data = res?.data;
       if (data) {
         setToken(data.whatsapp_token ?? "");

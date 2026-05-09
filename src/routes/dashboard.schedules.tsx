@@ -20,7 +20,7 @@ interface Doctor { id: string; name: string; }
 interface Schedule { id: string; doctor_id: string; day_of_week: number; shift: "morning"|"evening"; max_capacity: number; }
 
 function SchedulesPage() {
-  const { session } = useAuth();
+  useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [doctorId, setDoctorId] = useState<string>("");

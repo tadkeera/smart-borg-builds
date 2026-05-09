@@ -16,7 +16,7 @@ export const Route = createFileRoute("/dashboard/whatsapp")({
 });
 
 function WhatsAppPage() {
-  const { session } = useAuth();
+  useAuth();
   const [token, setToken] = useState("");
   const [phoneId, setPhoneId] = useState("");
   const [verify, setVerify] = useState("");

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/dashboard/doctors")({
 interface Doctor { id: string; name: string; speciality: string; }
 
 function DoctorsPage() {
-  const { session } = useAuth();
+  useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Doctor | null>(null);

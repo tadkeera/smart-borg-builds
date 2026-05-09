@@ -84,8 +84,8 @@ function AccountPage() {
         <div className="flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> إضافة موظف استقبال</div>
         <form onSubmit={createReceptionist} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-2 sm:col-span-1">
-            <Label>البريد الإلكتروني</Label>
-            <Input type="email" dir="ltr" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <Label>اسم المستخدم</Label>
+            <Input type="text" dir="ltr" value={username} onChange={e=>setUsername(e.target.value)} required minLength={3} placeholder="username" />
           </div>
           <div className="space-y-2 sm:col-span-1">
             <Label>كلمة المرور</Label>

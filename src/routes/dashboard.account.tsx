@@ -21,7 +21,7 @@ function AccountPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [pass, setPass] = useState("");
   const [creating, setCreating] = useState(false);
 

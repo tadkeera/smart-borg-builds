@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,13 +25,17 @@ function WhatsAppPage() {
   const webhookUrl = `https://${projectId}.supabase.co/functions/v1/whatsapp-webhook`;
 
   const load = async () => {
-    const { data } = await supabase.from("app_settings").select("*").eq("id",1).single();
-    if (data) {
-      setToken(data.whatsapp_token ?? "");
-      setPhoneId(data.whatsapp_phone_number_id ?? "");
-      setVerify(data.whatsapp_verify_token ?? "");
-      setNotify(data.notify_phone || "+967");
-    }
+    if (!session?.password) return;
+    try {
+      const res: any = await adminAction(session.password, "settings.get", {});
+      const data = res?.data;
+      if (data) {
+        setToken(data.whatsapp_token ?? "");
+        setPhoneId(data.whatsapp_phone_number_id ?? "");
+        setVerify(data.whatsapp_verify_token ?? "");
+        setNotify(data.notify_phone || "+967");
+      }
+    } catch (e: any) { toast.error(e.message); }
   };
   useEffect(() => { load(); }, []);
 

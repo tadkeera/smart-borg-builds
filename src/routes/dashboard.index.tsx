@@ -18,7 +18,7 @@ interface Schedule { id: string; doctor_id: string; day_of_week: number; shift: 
 interface Booking { id: string; doctor_id: string; patient_name: string; patient_phone: string|null; booking_date: string; day_of_week: number; shift: string|null; created_at: string; }
 
 function BookingsPage() {
-  const { isAdmin, session } = useAuth();
+  const { isAdmin } = useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -29,18 +29,16 @@ function BookingsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [d, s] = await Promise.all([
+      const [d, s, b] = await Promise.all([
         supabase.from("doctors").select("*").order("name"),
         supabase.from("schedules").select("*"),
+        supabase.from("bookings").select("*")
+          .order("booking_date", { ascending: false })
+          .order("created_at", { ascending: false }),
       ]);
       setDoctors(d.data ?? []);
       setSchedules(s.data ?? []);
-      if (session?.password) {
-        const res: any = await adminAction(session.password, "bookings.list", {});
-        setBookings((res?.data ?? []) as Booking[]);
-      } else {
-        setBookings([]);
-      }
+      setBookings((b.data ?? []) as Booking[]);
     } catch (e: any) {
       toast.error(e.message || "تعذّر تحميل البيانات");
     } finally {
@@ -82,7 +80,7 @@ function BookingsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("حذف هذا الحجز؟")) return;
     try {
-      await adminAction(session!.password!, "booking.delete", { id });
+      await adminAction("booking.delete", { id });
       toast.success("تم الحذف");
       load();
     } catch (e: any) { toast.error(e.message); }

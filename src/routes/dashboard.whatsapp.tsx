@@ -16,7 +16,7 @@ export const Route = createFileRoute("/dashboard/whatsapp")({
 });
 
 function WhatsAppPage() {
-  const { session } = useAuth();
+  useAuth();
   const [token, setToken] = useState("");
   const [phoneId, setPhoneId] = useState("");
   const [verify, setVerify] = useState("");
@@ -25,9 +25,8 @@ function WhatsAppPage() {
   const webhookUrl = `https://${projectId}.supabase.co/functions/v1/whatsapp-webhook`;
 
   const load = async () => {
-    if (!session?.password) return;
     try {
-      const res: any = await adminAction(session.password, "settings.get", {});
+      const res: any = await adminAction("settings.get", {});
       const data = res?.data;
       if (data) {
         setToken(data.whatsapp_token ?? "");
@@ -41,7 +40,7 @@ function WhatsAppPage() {
 
   const save = async () => {
     try {
-      await adminAction(session!.password!, "settings.update", {
+      await adminAction("settings.update", {
         whatsapp_token: token,
         whatsapp_phone_number_id: phoneId,
         whatsapp_verify_token: verify,

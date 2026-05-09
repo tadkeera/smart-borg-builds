@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 
 export function AppHeader() {
-  const { session, logout } = useAuth();
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur shadow-sm">
@@ -19,18 +19,18 @@ export function AppHeader() {
             مستشفى برج الأطباء
           </p>
         </div>
-        {session && (
+        {user && (
           <div className="flex items-center gap-2">
             <div className="hidden sm:block text-left">
               <div className="text-xs text-muted-foreground">
-                {session.role === "admin" ? "مدير النظام" : "موظف استقبال"}
+                {role === "admin" ? "مدير النظام" : role === "receptionist" ? "موظف استقبال" : "—"}
               </div>
-              <div className="text-sm font-semibold">{session.name}</div>
+              <div className="text-sm font-semibold truncate max-w-[200px]" dir="ltr">{user.email}</div>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { logout(); navigate({ to: "/login" }); }}
+              onClick={async () => { await signOut(); navigate({ to: "/login" }); }}
             >
               <LogOut className="h-4 w-4 ml-1" />
               خروج

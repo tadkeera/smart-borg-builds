@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,39 +7,42 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
-import { adminLogin } from "@/lib/admin-api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
 function LoginPage() {
-  const { login } = useAuth();
+  const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
-  const [adminUser, setAdminUser] = useState("");
-  const [adminPass, setAdminPass] = useState("");
-  const [recName, setRecName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
+  useEffect(() => { if (user) navigate({ to: "/dashboard" }); }, [user, navigate]);
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await adminLogin(adminUser, adminPass);
-      login({ role: "admin", name: adminUser, password: adminPass });
-      toast.success("مرحباً بك يا مدير النظام");
+      await signIn(email.trim(), password);
+      toast.success("تم تسجيل الدخول");
       navigate({ to: "/dashboard" });
     } catch (err: any) {
-      toast.error(err.message || "اسم المستخدم أو كلمة المرور غير صحيحة");
+      toast.error(err.message || "فشل تسجيل الدخول");
     } finally { setLoading(false); }
   };
 
-  const recLogin = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (recName.trim().length < 2) { toast.error("الرجاء إدخال الاسم"); return; }
-    login({ role: "receptionist", name: recName.trim() });
-    toast.success(`مرحباً ${recName.trim()}`);
-    navigate({ to: "/dashboard" });
+    if (password.length < 6) { toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل"); return; }
+    setLoading(true);
+    try {
+      await signUp(email.trim(), password);
+      toast.success("تم إنشاء الحساب — تحقق من بريدك لتفعيله ثم سجّل الدخول");
+    } catch (err: any) {
+      toast.error(err.message || "فشل إنشاء الحساب");
+    } finally { setLoading(false); }
   };
 
   return (
@@ -53,20 +56,21 @@ function LoginPage() {
           </h1>
           <p className="text-sm text-muted-foreground text-center">مستشفى برج الأطباء</p>
         </div>
-        <Tabs defaultValue="admin" className="w-full">
+        <Tabs defaultValue="signin" className="w-full">
           <TabsList className="grid grid-cols-2 w-full">
-            <TabsTrigger value="admin">مدير النظام</TabsTrigger>
-            <TabsTrigger value="receptionist">موظف الاستقبال</TabsTrigger>
+            <TabsTrigger value="signin">تسجيل الدخول</TabsTrigger>
+            <TabsTrigger value="signup">إنشاء حساب</TabsTrigger>
           </TabsList>
-          <TabsContent value="admin">
-            <form onSubmit={handleAdminLogin} className="space-y-4 pt-4">
+
+          <TabsContent value="signin">
+            <form onSubmit={handleSignIn} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label>اسم المستخدم</Label>
-                <Input value={adminUser} onChange={e => setAdminUser(e.target.value)} required autoComplete="username" />
+                <Label>البريد الإلكتروني</Label>
+                <Input type="email" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
               </div>
               <div className="space-y-2">
                 <Label>كلمة المرور</Label>
-                <Input type="password" value={adminPass} onChange={e => setAdminPass(e.target.value)} required autoComplete="current-password" />
+                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
@@ -74,14 +78,25 @@ function LoginPage() {
               </Button>
             </form>
           </TabsContent>
-          <TabsContent value="receptionist">
-            <form onSubmit={recLogin} className="space-y-4 pt-4">
+
+          <TabsContent value="signup">
+            <form onSubmit={handleSignUp} className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label>اسم الموظف</Label>
-                <Input value={recName} onChange={e => setRecName(e.target.value)} required placeholder="أدخل اسمك الكامل" />
+                <Label>البريد الإلكتروني</Label>
+                <Input type="email" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
               </div>
-              <p className="text-xs text-muted-foreground">صلاحيات القراءة فقط — لا يمكن إضافة أو تعديل أو حذف أي بيانات.</p>
-              <Button type="submit" className="w-full">دخول</Button>
+              <div className="space-y-2">
+                <Label>كلمة المرور</Label>
+                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" minLength={6} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                أول مستخدم يسجّل في النظام يصبح <strong>مدير النظام</strong> تلقائياً.
+                المدير يُنشئ بعد ذلك حسابات موظفي الاستقبال من صفحة <em>الحسابات</em>.
+              </p>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                إنشاء حساب
+              </Button>
             </form>
           </TabsContent>
         </Tabs>

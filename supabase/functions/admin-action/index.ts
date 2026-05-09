@@ -98,20 +98,23 @@ Deno.serve(async (req) => {
         if (error) throw error; break;
       }
 
-      // User management — invite a receptionist
+      // User management — invite a receptionist (login by username)
       case "user.createReceptionist": {
-        const { email, password } = payload ?? {};
-        if (!email || !password) return json({ error: "البريد وكلمة المرور مطلوبان" }, 400);
+        const { username, password } = payload ?? {};
+        const cleanUser = String(username ?? "").trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+        if (!cleanUser || !password) return json({ error: "اسم المستخدم وكلمة المرور مطلوبان" }, 400);
+        if (cleanUser.length < 3) return json({ error: "اسم المستخدم 3 أحرف على الأقل" }, 400);
+        const email = `${cleanUser}@borg.local`;
         const { data: created, error: cErr } = await admin.auth.admin.createUser({
           email, password, email_confirm: true,
+          user_metadata: { username: cleanUser, role: "receptionist" },
         });
         if (cErr) throw cErr;
         const newId = created.user!.id;
-        // Remove auto-assigned admin role if first user (shouldn't happen here), then set receptionist
         await admin.from("user_roles").delete().eq("user_id", newId);
         const { error: rErr } = await admin.from("user_roles").insert({ user_id: newId, role: "receptionist" });
         if (rErr) throw rErr;
-        result.data = { id: newId, email };
+        result.data = { id: newId, username: cleanUser };
         break;
       }
       case "user.list": {
@@ -122,9 +125,16 @@ Deno.serve(async (req) => {
           const list = map.get(r.user_id) ?? [];
           list.push(r.role); map.set(r.user_id, list);
         });
-        result.data = (users.users ?? []).map(u => ({
-          id: u.id, email: u.email, roles: map.get(u.id) ?? []
-        }));
+        result.data = (users.users ?? []).map(u => {
+          const email = u.email ?? "";
+          const isReception = email.endsWith("@borg.local");
+          return {
+            id: u.id,
+            email,
+            username: isReception ? email.replace(/@borg\.local$/, "") : null,
+            roles: map.get(u.id) ?? [],
+          };
+        });
         break;
       }
       case "user.delete": {

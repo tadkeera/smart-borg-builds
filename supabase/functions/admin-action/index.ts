@@ -16,11 +16,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
     const body = await req.json();
-    const { password, action, payload } = body ?? {};
+    const { username, password, action, payload } = body ?? {};
 
     const { data: settings, error: sErr } = await supabase
-      .from("app_settings").select("admin_password").eq("id", 1).single();
+      .from("app_settings").select("*").eq("id", 1).single();
     if (sErr) throw sErr;
+
+    // auth.login is the only action that accepts username+password (no prior session)
+    if (action === "auth.login") {
+      if (!username || !password || username !== settings.admin_username || password !== settings.admin_password) {
+        return new Response(JSON.stringify({ error: "اسم المستخدم أو كلمة المرور غير صحيحة" }), {
+          status: 401, headers: { ...cors, "Content-Type": "application/json" }
+        });
+      }
+      return new Response(JSON.stringify({ ok: true, username: settings.admin_username }), {
+        headers: { ...cors, "Content-Type": "application/json" }
+      });
+    }
+
     if (!password || password !== settings.admin_password) {
       return new Response(JSON.stringify({ error: "كلمة المرور غير صحيحة" }), {
         status: 401, headers: { ...cors, "Content-Type": "application/json" }
@@ -29,6 +42,24 @@ Deno.serve(async (req) => {
 
     let result: any = { ok: true };
     switch (action) {
+      // Reads (admin-only)
+      case "settings.get": {
+        result.data = {
+          whatsapp_token: settings.whatsapp_token ?? "",
+          whatsapp_phone_number_id: settings.whatsapp_phone_number_id ?? "",
+          whatsapp_verify_token: settings.whatsapp_verify_token ?? "",
+          notify_phone: settings.notify_phone ?? "",
+          admin_username: settings.admin_username,
+        };
+        break;
+      }
+      case "bookings.list": {
+        const { data, error } = await supabase
+          .from("bookings").select("*")
+          .order("booking_date", { ascending: false })
+          .order("created_at", { ascending: false });
+        if (error) throw error; result.data = data; break;
+      }
       // Doctors
       case "doctor.create": {
         const { data, error } = await supabase.from("doctors").insert({

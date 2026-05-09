@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { adminLogin } from "@/lib/admin-api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -21,21 +21,16 @@ function LoginPage() {
   const [recName, setRecName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const adminLogin = async (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.from("app_settings").select("admin_username,admin_password").eq("id", 1).single();
-      if (error) throw error;
-      if (adminUser === data.admin_username && adminPass === data.admin_password) {
-        login({ role: "admin", name: adminUser, password: adminPass });
-        toast.success("مرحباً بك يا مدير النظام");
-        navigate({ to: "/dashboard" });
-      } else {
-        toast.error("اسم المستخدم أو كلمة المرور غير صحيحة");
-      }
+      await adminLogin(adminUser, adminPass);
+      login({ role: "admin", name: adminUser, password: adminPass });
+      toast.success("مرحباً بك يا مدير النظام");
+      navigate({ to: "/dashboard" });
     } catch (err: any) {
-      toast.error(err.message || "خطأ في تسجيل الدخول");
+      toast.error(err.message || "اسم المستخدم أو كلمة المرور غير صحيحة");
     } finally { setLoading(false); }
   };
 
@@ -64,7 +59,7 @@ function LoginPage() {
             <TabsTrigger value="receptionist">موظف الاستقبال</TabsTrigger>
           </TabsList>
           <TabsContent value="admin">
-            <form onSubmit={adminLogin} className="space-y-4 pt-4">
+            <form onSubmit={handleAdminLogin} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label>اسم المستخدم</Label>
                 <Input value={adminUser} onChange={e => setAdminUser(e.target.value)} required autoComplete="username" />

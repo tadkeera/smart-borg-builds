@@ -106,7 +106,7 @@ function AccountPage() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/60">
               <tr className="text-right">
-                <th className="p-3">البريد</th>
+                <th className="p-3">المعرّف</th>
                 <th className="p-3">الدور</th>
                 <th className="p-3">إجراء</th>
               </tr>
@@ -116,7 +116,7 @@ function AccountPage() {
               {!loading && users.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>}
               {users.map(u => (
                 <tr key={u.id} className="border-t">
-                  <td className="p-3 font-mono text-xs" dir="ltr">{u.email}</td>
+                  <td className="p-3 font-mono text-xs" dir="ltr">{u.username ?? u.email}</td>
                   <td className="p-3">
                     {u.roles.includes("admin") ? "مدير النظام" : u.roles.includes("receptionist") ? "موظف استقبال" : "—"}
                   </td>

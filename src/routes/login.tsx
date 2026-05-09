@@ -4,18 +4,23 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck, UserCog } from "lucide-react";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
+// Synthetic email domain used for receptionist usernames.
+// Must match the value used in supabase/functions/admin-action/index.ts
+const RECEPTION_DOMAIN = "borg.local";
+
 function LoginPage() {
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [accountType, setAccountType] = useState<"admin" | "receptionist">("admin");
+  const [identifier, setIdentifier] = useState(""); // email for admin, username for receptionist
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,23 +30,15 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(email.trim(), password);
+      const id = identifier.trim();
+      const email = accountType === "admin"
+        ? id
+        : `${id.toLowerCase().replace(/[^a-z0-9_.-]/g, "")}@${RECEPTION_DOMAIN}`;
+      await signIn(email, password);
       toast.success("تم تسجيل الدخول");
       navigate({ to: "/dashboard" });
     } catch (err: any) {
       toast.error(err.message || "فشل تسجيل الدخول");
-    } finally { setLoading(false); }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.length < 6) { toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل"); return; }
-    setLoading(true);
-    try {
-      await signUp(email.trim(), password);
-      toast.success("تم إنشاء الحساب — تحقق من بريدك لتفعيله ثم سجّل الدخول");
-    } catch (err: any) {
-      toast.error(err.message || "فشل إنشاء الحساب");
     } finally { setLoading(false); }
   };
 
@@ -56,50 +53,55 @@ function LoginPage() {
           </h1>
           <p className="text-sm text-muted-foreground text-center">مستشفى برج الأطباء</p>
         </div>
-        <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid grid-cols-2 w-full">
-            <TabsTrigger value="signin">تسجيل الدخول</TabsTrigger>
-            <TabsTrigger value="signup">إنشاء حساب</TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="signin">
-            <form onSubmit={handleSignIn} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>البريد الإلكتروني</Label>
-                <Input type="email" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-              </div>
-              <div className="space-y-2">
-                <Label>كلمة المرور</Label>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                دخول
-              </Button>
-            </form>
-          </TabsContent>
+        <form onSubmit={handleSignIn} className="space-y-4">
+          <div className="space-y-2">
+            <Label>نوع الحساب</Label>
+            <RadioGroup
+              value={accountType}
+              onValueChange={(v) => { setAccountType(v as any); setIdentifier(""); }}
+              className="grid grid-cols-2 gap-2"
+            >
+              <label
+                htmlFor="t-admin"
+                className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer transition-colors ${accountType === "admin" ? "border-primary bg-primary/5" : "border-input"}`}
+              >
+                <RadioGroupItem id="t-admin" value="admin" />
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">مدير النظام</span>
+              </label>
+              <label
+                htmlFor="t-rec"
+                className={`flex items-center gap-2 rounded-md border p-3 cursor-pointer transition-colors ${accountType === "receptionist" ? "border-primary bg-primary/5" : "border-input"}`}
+              >
+                <RadioGroupItem id="t-rec" value="receptionist" />
+                <UserCog className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">موظف استقبال</span>
+              </label>
+            </RadioGroup>
+          </div>
 
-          <TabsContent value="signup">
-            <form onSubmit={handleSignUp} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>البريد الإلكتروني</Label>
-                <Input type="email" dir="ltr" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-              </div>
-              <div className="space-y-2">
-                <Label>كلمة المرور</Label>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" minLength={6} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                أول مستخدم يسجّل في النظام يصبح <strong>مدير النظام</strong> تلقائياً.
-                المدير يُنشئ بعد ذلك حسابات موظفي الاستقبال من صفحة <em>الحسابات</em>.
-              </p>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                إنشاء حساب
-              </Button>
-            </form>
-          </TabsContent>
-        </Tabs>
+          <div className="space-y-2">
+            <Label>{accountType === "admin" ? "البريد الإلكتروني" : "اسم المستخدم"}</Label>
+            <Input
+              type={accountType === "admin" ? "email" : "text"}
+              dir="ltr"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              required
+              autoComplete={accountType === "admin" ? "email" : "username"}
+              placeholder={accountType === "admin" ? "name@example.com" : "username"}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>كلمة المرور</Label>
+            <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            دخول
+          </Button>
+        </form>
       </Card>
     </div>
   );

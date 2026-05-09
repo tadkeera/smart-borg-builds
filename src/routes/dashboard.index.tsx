@@ -28,15 +28,24 @@ function BookingsPage() {
 
   const load = async () => {
     setLoading(true);
-    const [d, s, b] = await Promise.all([
-      supabase.from("doctors").select("*").order("name"),
-      supabase.from("schedules").select("*"),
-      supabase.from("bookings").select("*").order("booking_date", { ascending: false }).order("created_at", { ascending: false }),
-    ]);
-    setDoctors(d.data ?? []);
-    setSchedules(s.data ?? []);
-    setBookings(b.data ?? []);
-    setLoading(false);
+    try {
+      const [d, s] = await Promise.all([
+        supabase.from("doctors").select("*").order("name"),
+        supabase.from("schedules").select("*"),
+      ]);
+      setDoctors(d.data ?? []);
+      setSchedules(s.data ?? []);
+      if (session?.password) {
+        const res: any = await adminAction(session.password, "bookings.list", {});
+        setBookings((res?.data ?? []) as Booking[]);
+      } else {
+        setBookings([]);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "تعذّر تحميل البيانات");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {

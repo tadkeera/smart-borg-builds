@@ -14,7 +14,157 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_settings: {
+        Row: {
+          admin_password: string
+          admin_username: string
+          id: number
+          notify_phone: string | null
+          updated_at: string
+          whatsapp_phone_number_id: string | null
+          whatsapp_token: string | null
+          whatsapp_verify_token: string | null
+        }
+        Insert: {
+          admin_password?: string
+          admin_username?: string
+          id?: number
+          notify_phone?: string | null
+          updated_at?: string
+          whatsapp_phone_number_id?: string | null
+          whatsapp_token?: string | null
+          whatsapp_verify_token?: string | null
+        }
+        Update: {
+          admin_password?: string
+          admin_username?: string
+          id?: number
+          notify_phone?: string | null
+          updated_at?: string
+          whatsapp_phone_number_id?: string | null
+          whatsapp_token?: string | null
+          whatsapp_verify_token?: string | null
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          booking_date: string
+          created_at: string
+          day_of_week: number
+          doctor_id: string
+          id: string
+          patient_name: string
+          patient_phone: string | null
+          shift: string | null
+          source: string
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string
+          day_of_week: number
+          doctor_id: string
+          id?: string
+          patient_name: string
+          patient_phone?: string | null
+          shift?: string | null
+          source?: string
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string
+          day_of_week?: number
+          doctor_id?: string
+          id?: string
+          patient_name?: string
+          patient_phone?: string | null
+          shift?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          phone: string
+          state: Json
+          updated_at: string
+        }
+        Insert: {
+          phone: string
+          state?: Json
+          updated_at?: string
+        }
+        Update: {
+          phone?: string
+          state?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          speciality: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          speciality: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          speciality?: string
+        }
+        Relationships: []
+      }
+      schedules: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          doctor_id: string
+          id: string
+          max_capacity: number
+          shift: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          doctor_id: string
+          id?: string
+          max_capacity?: number
+          shift: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          doctor_id?: string
+          id?: string
+          max_capacity?: number
+          shift?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

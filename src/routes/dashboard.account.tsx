@@ -15,13 +15,13 @@ export const Route = createFileRoute("/dashboard/account")({
   component: () => <RequireAuth adminOnly><AccountPage /></RequireAuth>
 });
 
-interface ManagedUser { id: string; email: string; roles: string[] }
+interface ManagedUser { id: string; email: string; username: string | null; roles: string[] }
 
 function AccountPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [pass, setPass] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -41,12 +41,14 @@ function AccountPage() {
 
   const createReceptionist = async (e: React.FormEvent) => {
     e.preventDefault();
+    const u = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    if (u.length < 3) { toast.error("اسم المستخدم 3 أحرف على الأقل (إنجليزية/أرقام)"); return; }
     if (pass.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
     setCreating(true);
     try {
-      await adminAction("user.createReceptionist", { email: email.trim(), password: pass });
+      await adminAction("user.createReceptionist", { username: u, password: pass });
       toast.success("تم إنشاء حساب موظف الاستقبال");
-      setEmail(""); setPass("");
+      setUsername(""); setPass("");
       load();
     } catch (e: any) { toast.error(e.message); }
     finally { setCreating(false); }
@@ -82,8 +84,8 @@ function AccountPage() {
         <div className="flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4" /> إضافة موظف استقبال</div>
         <form onSubmit={createReceptionist} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-2 sm:col-span-1">
-            <Label>البريد الإلكتروني</Label>
-            <Input type="email" dir="ltr" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <Label>اسم المستخدم</Label>
+            <Input type="text" dir="ltr" value={username} onChange={e=>setUsername(e.target.value)} required minLength={3} placeholder="username" />
           </div>
           <div className="space-y-2 sm:col-span-1">
             <Label>كلمة المرور</Label>
@@ -104,7 +106,7 @@ function AccountPage() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/60">
               <tr className="text-right">
-                <th className="p-3">البريد</th>
+                <th className="p-3">المعرّف</th>
                 <th className="p-3">الدور</th>
                 <th className="p-3">إجراء</th>
               </tr>
@@ -114,7 +116,7 @@ function AccountPage() {
               {!loading && users.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>}
               {users.map(u => (
                 <tr key={u.id} className="border-t">
-                  <td className="p-3 font-mono text-xs" dir="ltr">{u.email}</td>
+                  <td className="p-3 font-mono text-xs" dir="ltr">{u.username ?? u.email}</td>
                   <td className="p-3">
                     {u.roles.includes("admin") ? "مدير النظام" : u.roles.includes("receptionist") ? "موظف استقبال" : "—"}
                   </td>

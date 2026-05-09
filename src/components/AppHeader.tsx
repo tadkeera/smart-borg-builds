@@ -25,7 +25,7 @@ export function AppHeader() {
               <div className="text-xs text-muted-foreground">
                 {role === "admin" ? "مدير النظام" : role === "receptionist" ? "موظف استقبال" : "—"}
               </div>
-              <div className="text-sm font-semibold truncate max-w-[200px]" dir="ltr">{user.email}</div>
+              <div className="text-sm font-semibold truncate max-w-[200px]" dir="ltr">{(user.email ?? "").replace(/@borg\.local$/, "")}</div>
             </div>
             <Button
               variant="outline"

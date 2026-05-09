@@ -41,12 +41,14 @@ function AccountPage() {
 
   const createReceptionist = async (e: React.FormEvent) => {
     e.preventDefault();
+    const u = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    if (u.length < 3) { toast.error("اسم المستخدم 3 أحرف على الأقل (إنجليزية/أرقام)"); return; }
     if (pass.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
     setCreating(true);
     try {
-      await adminAction("user.createReceptionist", { email: email.trim(), password: pass });
+      await adminAction("user.createReceptionist", { username: u, password: pass });
       toast.success("تم إنشاء حساب موظف الاستقبال");
-      setEmail(""); setPass("");
+      setUsername(""); setPass("");
       load();
     } catch (e: any) { toast.error(e.message); }
     finally { setCreating(false); }

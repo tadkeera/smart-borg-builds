@@ -42,7 +42,7 @@ function SchedulesPage() {
   const save = async () => {
     if (!doctorId) { toast.error("اختر طبيباً"); return; }
     try {
-      await adminAction(session!.password!, "schedule.upsert", {
+      await adminAction("schedule.upsert", {
         doctor_id: doctorId, day_of_week: parseInt(day), shift, max_capacity: cap,
       });
       toast.success("تم الحفظ");
@@ -52,7 +52,7 @@ function SchedulesPage() {
 
   const remove = async (id: string) => {
     if (!confirm("حذف هذا الموعد؟")) return;
-    try { await adminAction(session!.password!, "schedule.delete", { id }); toast.success("تم الحذف"); load(); }
+    try { await adminAction("schedule.delete", { id }); toast.success("تم الحذف"); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 

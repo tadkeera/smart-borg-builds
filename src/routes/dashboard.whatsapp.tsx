@@ -41,7 +41,7 @@ function WhatsAppPage() {
 
   const save = async () => {
     try {
-      await adminAction(session!.password!, "settings.update", {
+      await adminAction("settings.update", {
         whatsapp_token: token,
         whatsapp_phone_number_id: phoneId,
         whatsapp_verify_token: verify,

@@ -39,10 +39,10 @@ function DoctorsPage() {
     if (!name.trim() || !spec.trim()) { toast.error("الاسم والتخصص مطلوبان"); return; }
     try {
       if (editing) {
-        await adminAction(session!.password!, "doctor.update", { id: editing.id, name, speciality: spec });
+        await adminAction("doctor.update", { id: editing.id, name, speciality: spec });
         toast.success("تم التعديل");
       } else {
-        await adminAction(session!.password!, "doctor.create", { name, speciality: spec });
+        await adminAction("doctor.create", { name, speciality: spec });
         toast.success("تمت الإضافة");
       }
       setOpen(false); load();
@@ -51,7 +51,7 @@ function DoctorsPage() {
 
   const remove = async (id: string) => {
     if (!confirm("حذف الطبيب وكل الجداول والحجوزات المرتبطة؟")) return;
-    try { await adminAction(session!.password!, "doctor.delete", { id }); toast.success("تم الحذف"); load(); }
+    try { await adminAction("doctor.delete", { id }); toast.success("تم الحذف"); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 

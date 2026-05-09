@@ -15,7 +15,7 @@ export const Route = createFileRoute("/dashboard/account")({
   component: () => <RequireAuth adminOnly><AccountPage /></RequireAuth>
 });
 
-interface ManagedUser { id: string; email: string; roles: string[] }
+interface ManagedUser { id: string; email: string; username: string | null; roles: string[] }
 
 function AccountPage() {
   const { user } = useAuth();

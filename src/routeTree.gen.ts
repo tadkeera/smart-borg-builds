@@ -9,38 +9,140 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardWhatsappRouteImport } from './routes/dashboard.whatsapp'
+import { Route as DashboardSchedulesRouteImport } from './routes/dashboard.schedules'
+import { Route as DashboardDoctorsRouteImport } from './routes/dashboard.doctors'
+import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardWhatsappRoute = DashboardWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSchedulesRoute = DashboardSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDoctorsRoute = DashboardDoctorsRouteImport.update({
+  id: '/doctors',
+  path: '/doctors',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAccountRoute = DashboardAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/login': typeof LoginRoute
+  '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/doctors': typeof DashboardDoctorsRoute
+  '/dashboard/schedules': typeof DashboardSchedulesRoute
+  '/dashboard/whatsapp': typeof DashboardWhatsappRoute
+  '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/doctors': typeof DashboardDoctorsRoute
+  '/dashboard/schedules': typeof DashboardSchedulesRoute
+  '/dashboard/whatsapp': typeof DashboardWhatsappRoute
+  '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/login': typeof LoginRoute
+  '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/doctors': typeof DashboardDoctorsRoute
+  '/dashboard/schedules': typeof DashboardSchedulesRoute
+  '/dashboard/whatsapp': typeof DashboardWhatsappRoute
+  '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/dashboard/account'
+    | '/dashboard/doctors'
+    | '/dashboard/schedules'
+    | '/dashboard/whatsapp'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/dashboard/account'
+    | '/dashboard/doctors'
+    | '/dashboard/schedules'
+    | '/dashboard/whatsapp'
+    | '/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/dashboard/account'
+    | '/dashboard/doctors'
+    | '/dashboard/schedules'
+    | '/dashboard/whatsapp'
+    | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +150,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/whatsapp': {
+      id: '/dashboard/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/dashboard/whatsapp'
+      preLoaderRoute: typeof DashboardWhatsappRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/schedules': {
+      id: '/dashboard/schedules'
+      path: '/schedules'
+      fullPath: '/dashboard/schedules'
+      preLoaderRoute: typeof DashboardSchedulesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/doctors': {
+      id: '/dashboard/doctors'
+      path: '/doctors'
+      fullPath: '/dashboard/doctors'
+      preLoaderRoute: typeof DashboardDoctorsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/account': {
+      id: '/dashboard/account'
+      path: '/account'
+      fullPath: '/dashboard/account'
+      preLoaderRoute: typeof DashboardAccountRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardAccountRoute: typeof DashboardAccountRoute
+  DashboardDoctorsRoute: typeof DashboardDoctorsRoute
+  DashboardSchedulesRoute: typeof DashboardSchedulesRoute
+  DashboardWhatsappRoute: typeof DashboardWhatsappRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAccountRoute: DashboardAccountRoute,
+  DashboardDoctorsRoute: DashboardDoctorsRoute,
+  DashboardSchedulesRoute: DashboardSchedulesRoute,
+  DashboardWhatsappRoute: DashboardWhatsappRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -1,0 +1,6 @@
+project_id = "rneenavemxbuorgujzml"
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.admin-action]
+verify_jwt = false

@@ -86,7 +86,10 @@ function DoctorBookingsPage() {
       </div>
 
       <Card className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="space-y-1 lg:col-span-2"><Label>بحث (اسم المريض أو رقم الجوال)</Label>
+            <Input placeholder="اكتب للبحث..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
           <div className="space-y-1"><Label>التاريخ</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
           <div className="space-y-1"><Label>الفترة</Label>
             <Select value={shiftFilter} onValueChange={setShiftFilter}>
@@ -109,8 +112,8 @@ function DoctorBookingsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 flex flex-col"><Label>&nbsp;</Label>
-            <Button variant="ghost" onClick={() => { setDate(""); setStatusFilter("all"); setShiftFilter("all"); }}>مسح الفلاتر</Button>
+          <div className="space-y-1 flex flex-col lg:col-span-5 sm:flex-row sm:justify-end"><Label className="sm:hidden">&nbsp;</Label>
+            <Button variant="ghost" onClick={() => { setDate(""); setStatusFilter("all"); setShiftFilter("all"); setSearch(""); }}>مسح الفلاتر</Button>
           </div>
         </div>
       </Card>

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/dashboard/doctors")({
 
 interface Doctor {
   id: string; name: string; speciality: string;
-  allow_next_week: boolean; is_paused: boolean;
+  allow_next_week: boolean; allow_two_weeks: boolean; is_paused: boolean;
 }
 
 function DoctorsPage() {
@@ -28,6 +28,7 @@ function DoctorsPage() {
   const [name, setName] = useState("");
   const [spec, setSpec] = useState("");
   const [allowNext, setAllowNext] = useState(false);
+  const [allowTwo, setAllowTwo] = useState(false);
   const [paused, setPaused] = useState(false);
 
   const load = async () => {
@@ -37,17 +38,17 @@ function DoctorsPage() {
   useEffect(() => { load(); }, []);
 
   const startAdd = () => {
-    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setPaused(false); setOpen(true);
+    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setAllowTwo(false); setPaused(false); setOpen(true);
   };
   const startEdit = (d: Doctor) => {
     setEditing(d); setName(d.name); setSpec(d.speciality);
-    setAllowNext(d.allow_next_week); setPaused(d.is_paused); setOpen(true);
+    setAllowNext(d.allow_next_week); setAllowTwo(d.allow_two_weeks); setPaused(d.is_paused); setOpen(true);
   };
 
   const save = async () => {
     if (!name.trim() || !spec.trim()) { toast.error("الاسم والتخصص مطلوبان"); return; }
     try {
-      const payload: any = { name, speciality: spec, allow_next_week: allowNext, is_paused: paused };
+      const payload: any = { name, speciality: spec, allow_next_week: allowNext, allow_two_weeks: allowTwo, is_paused: paused };
       if (editing) {
         await adminAction("doctor.update", { id: editing.id, ...payload });
         toast.success("تم التعديل");
@@ -59,8 +60,8 @@ function DoctorsPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const togglePause = async (d: Doctor) => {
-    try { await adminAction("doctor.update", { id: d.id, is_paused: !d.is_paused }); load(); }
+  const toggleField = async (d: Doctor, field: "allow_next_week" | "allow_two_weeks" | "is_paused", value: boolean) => {
+    try { await adminAction("doctor.update", { id: d.id, [field]: value }); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 
@@ -89,6 +90,10 @@ function DoctorsPage() {
               <label className="flex items-center justify-between gap-2 rounded-md border p-3">
                 <span className="text-sm">السماح بالحجز للأسبوع القادم</span>
                 <Switch checked={allowNext} onCheckedChange={setAllowNext} />
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-3">
+                <span className="text-sm">السماح بالحجز لمدة ١٤ يوم</span>
+                <Switch checked={allowTwo} onCheckedChange={setAllowTwo} />
               </label>
               <label className="flex items-center justify-between gap-2 rounded-md border p-3">
                 <span className="text-sm">إيقاف مؤقت لجميع الحجوزات لهذا الطبيب</span>

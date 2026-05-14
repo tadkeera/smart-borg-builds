@@ -27,20 +27,29 @@ function jsDayToAr(jsDay: number): number {
 function startOfWeekSaturday(d: Date): Date {
   const out = new Date(d);
   out.setHours(0,0,0,0);
-  // back up to most recent Saturday
-  const back = (out.getDay() + 1) % 7; // Sat=6→0, Sun=0→1, Mon=1→2 ...
+  const back = (out.getDay() + 1) % 7;
   out.setDate(out.getDate() - back);
   return out;
 }
 
+// Active week rolls over every Thursday at 22:00 to the next Sat-week.
+function activeWeekStart(now: Date): Date {
+  const base = startOfWeekSaturday(now);
+  const cutoff = new Date(base);
+  cutoff.setDate(base.getDate() + 5); // Thursday
+  cutoff.setHours(22, 0, 0, 0);
+  if (now >= cutoff) base.setDate(base.getDate() + 7);
+  return base;
+}
+
 function ymd(d: Date) { return d.toISOString().slice(0,10); }
 
-// Returns array of { dow, date } pairs for the requested week
-function weekDates(weekOffset: 0 | 1): { dow: number; date: string }[] {
-  const start = startOfWeekSaturday(new Date());
+// Returns array of { dow, date } pairs for the requested week offset
+function weekDates(weekOffset: number): { dow: number; date: string }[] {
+  const start = activeWeekStart(new Date());
   start.setDate(start.getDate() + weekOffset * 7);
   const out: { dow: number; date: string }[] = [];
-  for (let i = 0; i < 6; i++) { // Sat..Thu (skip Friday at index 6)
+  for (let i = 0; i < 6; i++) { // Sat..Thu (skip Friday)
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     out.push({ dow: i, date: ymd(d) });

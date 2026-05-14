@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
 
     if (text === "تسجيل" || text.toLowerCase() === "registration") {
       const { data: doctors } = await supabase.from("doctors")
-        .select("id,name,speciality,allow_next_week,is_paused")
+        .select("id,name,speciality,allow_next_week,allow_two_weeks,is_paused")
         .eq("is_paused", false)
         .order("created_at");
       if (!doctors || doctors.length === 0) {
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
         }
 
         // Build available dates (current week, optional next week)
-        const weeksToCheck: (0|1)[] = doc.allow_next_week ? [0,1] : [0];
+        const weeksToCheck: number[] = doc.allow_two_weeks ? [0,1,2] : (doc.allow_next_week ? [0,1] : [0]);
         const todayStr = ymd(new Date());
         const offered: { dow: number; date: string; shifts: string[] }[] = [];
         for (const w of weeksToCheck) {
@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
           await reply("حدث خطأ أثناء حفظ الحجز. الرجاء المحاولة لاحقاً.");
           await reset(); break;
         }
-        await reply(`تم تأكيد الحجز بنجاح. موعدك هو ( ${DAY_NAMES[state.day_of_week]} ) الموافق ( ${state.date} )، نتمنى لكم دوام الصحة والعافية.`);
+        await reply(`تم تأكيد الحجز بنجاح.\nالاسم: ${text}\nموعدك هو ${DAY_NAMES[state.day_of_week]} الموافق ${state.date}\nالفترة: ${SHIFT_AR[state.shift] ?? state.shift}\nنتمنى لكم دوام الصحة والعافية.`);
         await reset();
         break;
       }

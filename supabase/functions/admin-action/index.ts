@@ -195,6 +195,7 @@ Deno.serve(async (req) => {
         const { error: rErr } = await admin.from("user_roles").insert({ user_id: newId, role });
         if (rErr) throw rErr;
         result.data = { id: newId, username, email, role };
+        await audit("user", newId, { role, email, username, display_name: userMeta.display_name });
         break;
       }
       case "user.list": {

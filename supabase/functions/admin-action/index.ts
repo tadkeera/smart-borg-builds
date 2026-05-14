@@ -222,7 +222,9 @@ Deno.serve(async (req) => {
       case "user.delete": {
         if (payload.id === userId) return json({ error: "لا يمكن حذف حسابك" }, 400);
         const { error } = await admin.auth.admin.deleteUser(payload.id);
-        if (error) throw error; break;
+        if (error) throw error;
+        await audit("user", payload.id, {});
+        break;
       }
 
       default:

@@ -5,9 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { adminAction } from "@/lib/admin-api";
-import { useAuth } from "@/lib/auth";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,37 +16,52 @@ export const Route = createFileRoute("/dashboard/doctors")({
   component: () => <RequireAuth adminOnly><DoctorsPage /></RequireAuth>
 });
 
-interface Doctor { id: string; name: string; speciality: string; }
+interface Doctor {
+  id: string; name: string; speciality: string;
+  allow_next_week: boolean; is_paused: boolean;
+}
 
 function DoctorsPage() {
-  useAuth();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Doctor | null>(null);
   const [name, setName] = useState("");
   const [spec, setSpec] = useState("");
+  const [allowNext, setAllowNext] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from("doctors").select("*").order("name");
-    setDoctors(data ?? []);
+    setDoctors((data ?? []) as Doctor[]);
   };
   useEffect(() => { load(); }, []);
 
-  const startAdd = () => { setEditing(null); setName(""); setSpec(""); setOpen(true); };
-  const startEdit = (d: Doctor) => { setEditing(d); setName(d.name); setSpec(d.speciality); setOpen(true); };
+  const startAdd = () => {
+    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setPaused(false); setOpen(true);
+  };
+  const startEdit = (d: Doctor) => {
+    setEditing(d); setName(d.name); setSpec(d.speciality);
+    setAllowNext(d.allow_next_week); setPaused(d.is_paused); setOpen(true);
+  };
 
   const save = async () => {
     if (!name.trim() || !spec.trim()) { toast.error("الاسم والتخصص مطلوبان"); return; }
     try {
+      const payload: any = { name, speciality: spec, allow_next_week: allowNext, is_paused: paused };
       if (editing) {
-        await adminAction("doctor.update", { id: editing.id, name, speciality: spec });
+        await adminAction("doctor.update", { id: editing.id, ...payload });
         toast.success("تم التعديل");
       } else {
-        await adminAction("doctor.create", { name, speciality: spec });
+        await adminAction("doctor.create", payload);
         toast.success("تمت الإضافة");
       }
       setOpen(false); load();
     } catch (e: any) { toast.error(e.message); }
+  };
+
+  const togglePause = async (d: Doctor) => {
+    try { await adminAction("doctor.update", { id: d.id, is_paused: !d.is_paused }); load(); }
+    catch (e: any) { toast.error(e.message); }
   };
 
   const remove = async (id: string) => {
@@ -60,7 +75,7 @@ function DoctorsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-primary">الأطباء</h2>
-          <p className="text-sm text-muted-foreground">إدارة قائمة الأطباء وتخصصاتهم.</p>
+          <p className="text-sm text-muted-foreground">إدارة الأطباء والإعدادات الخاصة بكل طبيب.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -71,6 +86,14 @@ function DoctorsPage() {
             <div className="space-y-4">
               <div className="space-y-2"><Label>الاسم</Label><Input value={name} onChange={e=>setName(e.target.value)} /></div>
               <div className="space-y-2"><Label>التخصص</Label><Input value={spec} onChange={e=>setSpec(e.target.value)} /></div>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-3">
+                <span className="text-sm">السماح بالحجز للأسبوع القادم</span>
+                <Switch checked={allowNext} onCheckedChange={setAllowNext} />
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-3">
+                <span className="text-sm">إيقاف مؤقت لجميع الحجوزات لهذا الطبيب</span>
+                <Switch checked={paused} onCheckedChange={setPaused} />
+              </label>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
@@ -87,15 +110,24 @@ function DoctorsPage() {
               <tr className="text-right">
                 <th className="p-3 font-semibold">الاسم</th>
                 <th className="p-3 font-semibold">التخصص</th>
+                <th className="p-3 font-semibold">الأسبوع القادم</th>
+                <th className="p-3 font-semibold">الحالة</th>
                 <th className="p-3 font-semibold">إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {doctors.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">لا يوجد أطباء بعد</td></tr>}
+              {doctors.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا يوجد أطباء بعد</td></tr>}
               {doctors.map(d => (
                 <tr key={d.id} className="border-t hover:bg-muted/40">
                   <td className="p-3 font-medium">د. {d.name}</td>
                   <td className="p-3">{d.speciality}</td>
+                  <td className="p-3">{d.allow_next_week ? "✓ مفعّل" : "—"}</td>
+                  <td className="p-3">
+                    <label className="inline-flex items-center gap-2">
+                      <Switch checked={!d.is_paused} onCheckedChange={() => togglePause(d)} />
+                      <span className="text-xs">{d.is_paused ? "موقوف" : "نشط"}</span>
+                    </label>
+                  </td>
                   <td className="p-3 flex gap-1">
                     <Button size="sm" variant="ghost" onClick={() => startEdit(d)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="sm" variant="ghost" onClick={() => remove(d.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

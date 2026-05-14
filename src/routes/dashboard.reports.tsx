@@ -7,18 +7,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { RequireAuth } from "@/components/RequireAuth";
-import { Users, Activity, CalendarCheck, Trophy, RefreshCcw } from "lucide-react";
+import { Users, Activity, CalendarCheck, Trophy, RefreshCcw, FileText, FileSpreadsheet } from "lucide-react";
 import { DAY_NAMES, SHIFT_LABEL } from "@/lib/admin-api";
 import { toast } from "sonner";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
+  PieChart, Pie, Cell, Legend,
+} from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/dashboard/reports")({
   component: () => <RequireAuth adminOnly><ReportsPage /></RequireAuth>,
 });
 
 interface Doctor { id: string; name: string; speciality: string; }
-interface Booking { id: string; doctor_id: string; booking_date: string; day_of_week: number; shift: string|null; status: string; patient_phone: string|null; created_at: string; }
+interface Booking { id: string; doctor_id: string; booking_date: string; day_of_week: number; shift: string|null; status: string; patient_name: string; patient_phone: string|null; created_at: string; }
 
 const ymd = (d: Date) => d.toISOString().slice(0,10);
+const STATUS_LABEL: Record<string,string> = { confirmed:"مؤكد", completed:"مكتمل", cancelled:"ملغي" };
+const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--destructive))", "#f59e0b", "#10b981"];
 
 function ReportsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -45,12 +54,9 @@ function ReportsPage() {
   };
   useEffect(() => { load(); }, []);
 
-  // Compute date window based on selected period
   const range = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
-    if (period === "custom") {
-      return { from: from || "0000-01-01", to: to || "9999-12-31" };
-    }
+    if (period === "custom") return { from: from || "0000-01-01", to: to || "9999-12-31" };
     const start = new Date(today);
     if (period === "week") start.setDate(today.getDate() - 6);
     else if (period === "month") start.setDate(today.getDate() - 29);
@@ -72,7 +78,8 @@ function ReportsPage() {
   const completedCount = filtered.filter(b => b.status === "completed").length;
   const cancelledCount = filtered.filter(b => b.status === "cancelled").length;
 
-  // Per-doctor counts
+  const doctorMap = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
+
   const perDoctor = useMemo(() => {
     const m = new Map<string, number>();
     filtered.forEach(b => m.set(b.doctor_id, (m.get(b.doctor_id) ?? 0) + 1));
@@ -80,22 +87,90 @@ function ReportsPage() {
   }, [filtered, doctors]);
 
   const top5 = perDoctor.slice(0, 5);
-  const maxCount = top5[0]?.count || 1;
+  const top5Chart = top5.map(r => ({ name: `د. ${r.doctor.name}`, count: r.count }));
 
-  // Per-day breakdown
-  const perDay = useMemo(() => {
-    const arr = Array(6).fill(0);
-    filtered.forEach(b => { if (b.day_of_week >= 0 && b.day_of_week < 6) arr[b.day_of_week]++; });
+  const perDayChart = useMemo(() => {
+    const arr = Array(6).fill(0).map((_, i) => ({ day: DAY_NAMES[i], morning: 0, evening: 0, total: 0 }));
+    filtered.forEach(b => {
+      if (b.day_of_week >= 0 && b.day_of_week < 6) {
+        const row = arr[b.day_of_week];
+        if (b.shift === "morning") row.morning++;
+        else if (b.shift === "evening") row.evening++;
+        row.total++;
+      }
+    });
     return arr;
   }, [filtered]);
-  const maxDay = Math.max(1, ...perDay);
 
-  // Per-shift breakdown
-  const perShift = useMemo(() => {
+  const shiftChart = useMemo(() => {
     const morning = filtered.filter(b => b.shift === "morning").length;
     const evening = filtered.filter(b => b.shift === "evening").length;
-    return { morning, evening };
+    return [
+      { name: SHIFT_LABEL.morning, value: morning },
+      { name: SHIFT_LABEL.evening, value: evening },
+    ];
   }, [filtered]);
+
+  const filterSummary = () =>
+    `الفترة: ${range.from} إلى ${range.to}` +
+    (doctorFilter !== "all" ? ` | الطبيب: د. ${doctorMap.get(doctorFilter)?.name ?? ""}` : "") +
+    (statusFilter !== "all" ? ` | الحالة: ${STATUS_LABEL[statusFilter] ?? statusFilter}` : "") +
+    (shiftFilter !== "all" ? ` | الفترة اليومية: ${SHIFT_LABEL[shiftFilter] ?? shiftFilter}` : "");
+
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const summary = [
+      ["تقرير الحجوزات"], [filterSummary()], [],
+      ["إجمالي الحجوزات", totalBookings],
+      ["عدد المرضى", uniquePatients],
+      ["مؤكد", confirmedCount], ["مكتمل", completedCount], ["ملغي", cancelledCount],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "ملخص");
+
+    const perDocRows = [["الطبيب","التخصص","عدد الحجوزات"], ...perDoctor.map(r => [r.doctor.name, r.doctor.speciality, r.count])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(perDocRows), "حسب الطبيب");
+
+    const perDayRows = [["اليوم","صباحي","مسائي","الإجمالي"], ...perDayChart.map(r => [r.day, r.morning, r.evening, r.total])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(perDayRows), "حسب اليوم");
+
+    const bookingsRows = [["التاريخ","اليوم","الطبيب","المريض","الجوال","الفترة","الحالة"],
+      ...filtered.map(b => [
+        b.booking_date, DAY_NAMES[b.day_of_week] ?? "", doctorMap.get(b.doctor_id)?.name ?? "",
+        b.patient_name, b.patient_phone ?? "", b.shift ? SHIFT_LABEL[b.shift] : "", STATUS_LABEL[b.status] ?? b.status,
+      ])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bookingsRows), "الحجوزات");
+
+    XLSX.writeFile(wb, `report-${range.from}_${range.to}.xlsx`);
+    toast.success("تم تصدير الملف");
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF({ orientation: "portrait" });
+    doc.setFontSize(14);
+    doc.text("Bookings Report", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Range: ${range.from} -> ${range.to}`, 14, 22);
+    doc.text(`Total: ${totalBookings}  |  Patients: ${uniquePatients}  |  Confirmed: ${confirmedCount}  Completed: ${completedCount}  Cancelled: ${cancelledCount}`, 14, 28);
+
+    autoTable(doc, {
+      startY: 34,
+      head: [["Doctor","Speciality","Bookings"]],
+      body: perDoctor.map(r => [r.doctor.name, r.doctor.speciality, String(r.count)]),
+      styles: { fontSize: 9 },
+    });
+
+    autoTable(doc, {
+      head: [["Date","Day","Doctor","Patient","Phone","Shift","Status"]],
+      body: filtered.map(b => [
+        b.booking_date, String(b.day_of_week), doctorMap.get(b.doctor_id)?.name ?? "",
+        b.patient_name, b.patient_phone ?? "", b.shift ?? "", b.status,
+      ]),
+      styles: { fontSize: 8 },
+    });
+
+    doc.save(`report-${range.from}_${range.to}.pdf`);
+    toast.success("تم تصدير الملف");
+  };
 
   return (
     <div className="space-y-6">
@@ -104,7 +179,11 @@ function ReportsPage() {
           <h2 className="text-3xl font-bold text-primary">التقارير والإحصاءات</h2>
           <p className="text-sm text-muted-foreground">تحليل شامل للحجوزات وأداء الأطباء.</p>
         </div>
-        <Button variant="outline" onClick={load} disabled={loading}><RefreshCcw className="h-4 w-4 ml-1" /> تحديث</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={load} disabled={loading}><RefreshCcw className="h-4 w-4 ml-1" /> تحديث</Button>
+          <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="h-4 w-4 ml-1" /> Excel</Button>
+          <Button variant="outline" onClick={exportPDF}><FileText className="h-4 w-4 ml-1" /> PDF</Button>
+        </div>
       </div>
 
       <Card className="p-4">
@@ -164,51 +243,56 @@ function ReportsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5">
-          <h3 className="font-bold mb-3 flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /> أفضل ٥ أطباء (الأكثر استقبالاً للحالات)</h3>
-          {top5.length === 0 && <p className="text-sm text-muted-foreground">لا توجد بيانات.</p>}
-          <div className="space-y-3">
-            {top5.map((row, i) => (
-              <div key={row.doctor.id}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">#{i+1} د. {row.doctor.name}</span>
-                  <span className="font-bold text-primary">{row.count}</span>
-                </div>
-                <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: `${(row.count/maxCount)*100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <h3 className="font-bold mb-3 flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /> أفضل ٥ أطباء</h3>
+          {top5Chart.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد بيانات.</p> : (
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={top5Chart} layout="vertical" margin={{ left: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0,6,6,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         <Card className="p-5">
-          <h3 className="font-bold mb-3">توزيع الحجوزات حسب اليوم</h3>
-          <div className="space-y-2">
-            {perDay.map((c, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs w-16 text-muted-foreground">{DAY_NAMES[i]}</span>
-                <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: `${(c/maxDay)*100}%` }} />
-                </div>
-                <span className="text-xs font-bold w-10 text-end">{c}</span>
-              </div>
-            ))}
-          </div>
-
-          <h3 className="font-bold mb-3 mt-6">حسب الفترة</h3>
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">{SHIFT_LABEL.morning}</div><div className="text-xl font-bold">{perShift.morning}</div></div>
-            <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">{SHIFT_LABEL.evening}</div><div className="text-xl font-bold">{perShift.evening}</div></div>
-          </div>
-
-          <h3 className="font-bold mb-3 mt-6">حسب الحالة</h3>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">مؤكد</div><div className="text-xl font-bold">{confirmedCount}</div></div>
-            <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">مكتمل</div><div className="text-xl font-bold">{completedCount}</div></div>
-            <div className="rounded-md border p-3"><div className="text-xs text-muted-foreground">ملغي</div><div className="text-xl font-bold text-destructive">{cancelledCount}</div></div>
-          </div>
+          <h3 className="font-bold mb-3">توزيع الحجوزات حسب الفترة</h3>
+          {filtered.length === 0 ? <p className="text-sm text-muted-foreground">لا توجد بيانات.</p> : (
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={shiftChart} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
+                    {shiftChart.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
       </div>
+
+      <Card className="p-5">
+        <h3 className="font-bold mb-3">توزيع الحجوزات حسب اليوم</h3>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={perDayChart}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="day" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="morning" name="صباحي" stackId="a" fill="hsl(var(--primary))" />
+              <Bar dataKey="evening" name="مسائي" stackId="a" fill="#f59e0b" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
 
       <Card className="p-5">
         <h3 className="font-bold mb-3">عدد الحجوزات لكل طبيب</h3>

@@ -15,8 +15,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardWhatsappRouteImport } from './routes/dashboard.whatsapp'
 import { Route as DashboardSchedulesRouteImport } from './routes/dashboard.schedules'
+import { Route as DashboardReportsRouteImport } from './routes/dashboard.reports'
 import { Route as DashboardDoctorsRouteImport } from './routes/dashboard.doctors'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
+import { Route as DashboardDoctorDoctorIdRouteImport } from './routes/dashboard.doctor.$doctorId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -48,6 +50,11 @@ const DashboardSchedulesRoute = DashboardSchedulesRouteImport.update({
   path: '/schedules',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardReportsRoute = DashboardReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardDoctorsRoute = DashboardDoctorsRouteImport.update({
   id: '/doctors',
   path: '/doctors',
@@ -58,6 +65,11 @@ const DashboardAccountRoute = DashboardAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardDoctorDoctorIdRoute = DashboardDoctorDoctorIdRouteImport.update({
+  id: '/doctor/$doctorId',
+  path: '/doctor/$doctorId',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -65,18 +77,22 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/doctors': typeof DashboardDoctorsRoute
+  '/dashboard/reports': typeof DashboardReportsRoute
   '/dashboard/schedules': typeof DashboardSchedulesRoute
   '/dashboard/whatsapp': typeof DashboardWhatsappRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/doctor/$doctorId': typeof DashboardDoctorDoctorIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/doctors': typeof DashboardDoctorsRoute
+  '/dashboard/reports': typeof DashboardReportsRoute
   '/dashboard/schedules': typeof DashboardSchedulesRoute
   '/dashboard/whatsapp': typeof DashboardWhatsappRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/doctor/$doctorId': typeof DashboardDoctorDoctorIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -85,9 +101,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/doctors': typeof DashboardDoctorsRoute
+  '/dashboard/reports': typeof DashboardReportsRoute
   '/dashboard/schedules': typeof DashboardSchedulesRoute
   '/dashboard/whatsapp': typeof DashboardWhatsappRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/doctor/$doctorId': typeof DashboardDoctorDoctorIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,18 +115,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard/account'
     | '/dashboard/doctors'
+    | '/dashboard/reports'
     | '/dashboard/schedules'
     | '/dashboard/whatsapp'
     | '/dashboard/'
+    | '/dashboard/doctor/$doctorId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/dashboard/account'
     | '/dashboard/doctors'
+    | '/dashboard/reports'
     | '/dashboard/schedules'
     | '/dashboard/whatsapp'
     | '/dashboard'
+    | '/dashboard/doctor/$doctorId'
   id:
     | '__root__'
     | '/'
@@ -116,9 +138,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard/account'
     | '/dashboard/doctors'
+    | '/dashboard/reports'
     | '/dashboard/schedules'
     | '/dashboard/whatsapp'
     | '/dashboard/'
+    | '/dashboard/doctor/$doctorId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSchedulesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/reports': {
+      id: '/dashboard/reports'
+      path: '/reports'
+      fullPath: '/dashboard/reports'
+      preLoaderRoute: typeof DashboardReportsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/doctors': {
       id: '/dashboard/doctors'
       path: '/doctors'
@@ -185,23 +216,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAccountRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/doctor/$doctorId': {
+      id: '/dashboard/doctor/$doctorId'
+      path: '/doctor/$doctorId'
+      fullPath: '/dashboard/doctor/$doctorId'
+      preLoaderRoute: typeof DashboardDoctorDoctorIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
 interface DashboardRouteChildren {
   DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardDoctorsRoute: typeof DashboardDoctorsRoute
+  DashboardReportsRoute: typeof DashboardReportsRoute
   DashboardSchedulesRoute: typeof DashboardSchedulesRoute
   DashboardWhatsappRoute: typeof DashboardWhatsappRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardDoctorDoctorIdRoute: typeof DashboardDoctorDoctorIdRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAccountRoute: DashboardAccountRoute,
   DashboardDoctorsRoute: DashboardDoctorsRoute,
+  DashboardReportsRoute: DashboardReportsRoute,
   DashboardSchedulesRoute: DashboardSchedulesRoute,
   DashboardWhatsappRoute: DashboardWhatsappRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardDoctorDoctorIdRoute: DashboardDoctorDoctorIdRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(

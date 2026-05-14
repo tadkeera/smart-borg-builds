@@ -58,6 +58,8 @@ export type Database = {
           patient_phone: string | null
           shift: string | null
           source: string
+          status: string
+          whatsapp_instance_id: string | null
         }
         Insert: {
           booking_date: string
@@ -69,6 +71,8 @@ export type Database = {
           patient_phone?: string | null
           shift?: string | null
           source?: string
+          status?: string
+          whatsapp_instance_id?: string | null
         }
         Update: {
           booking_date?: string
@@ -80,6 +84,8 @@ export type Database = {
           patient_phone?: string | null
           shift?: string | null
           source?: string
+          status?: string
+          whatsapp_instance_id?: string | null
         }
         Relationships: [
           {
@@ -87,6 +93,13 @@ export type Database = {
             columns: ["doctor_id"]
             isOneToOne: false
             referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_whatsapp_instance_id_fkey"
+            columns: ["whatsapp_instance_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_instances"
             referencedColumns: ["id"]
           },
         ]
@@ -111,20 +124,26 @@ export type Database = {
       }
       doctors: {
         Row: {
+          allow_next_week: boolean
           created_at: string
           id: string
+          is_paused: boolean
           name: string
           speciality: string
         }
         Insert: {
+          allow_next_week?: boolean
           created_at?: string
           id?: string
+          is_paused?: boolean
           name: string
           speciality: string
         }
         Update: {
+          allow_next_week?: boolean
           created_at?: string
           id?: string
+          is_paused?: boolean
           name?: string
           speciality?: string
         }
@@ -136,6 +155,7 @@ export type Database = {
           day_of_week: number
           doctor_id: string
           id: string
+          is_paused: boolean
           max_capacity: number
           shift: string
         }
@@ -144,6 +164,7 @@ export type Database = {
           day_of_week: number
           doctor_id: string
           id?: string
+          is_paused?: boolean
           max_capacity?: number
           shift: string
         }
@@ -152,6 +173,7 @@ export type Database = {
           day_of_week?: number
           doctor_id?: string
           id?: string
+          is_paused?: boolean
           max_capacity?: number
           shift?: string
         }
@@ -183,6 +205,39 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_instances: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          phone_number_id: string
+          updated_at: string
+          verify_token: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone_number_id: string
+          updated_at?: string
+          verify_token: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone_number_id?: string
+          updated_at?: string
+          verify_token?: string
         }
         Relationships: []
       }

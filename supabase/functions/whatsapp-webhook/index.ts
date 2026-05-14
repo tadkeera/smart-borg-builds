@@ -1,9 +1,8 @@
-// WhatsApp Cloud API webhook for hospital booking chatbot.
-// GET: verification handshake. POST: incoming messages → state machine.
+// WhatsApp Cloud API webhook for hospital booking chatbot — multi-instance.
+// Routes incoming events by phone_number_id to the matching whatsapp_instances row.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const DAY_NAMES = ["السبت","الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس"];
-// Map Arabic day → 0..5 (Sat..Thu)
 const DAY_LOOKUP: Record<string, number> = {
   "السبت":0,"سبت":0,
   "الاحد":1,"الأحد":1,"احد":1,"أحد":1,
@@ -18,14 +17,35 @@ function normalize(s: string) {
   return s.trim().replace(/[ـ]/g,"").replace(/\s+/g," ");
 }
 
-function nextDateForDay(targetDow: number): string {
-  // targetDow: 0=Sat..5=Thu. JS getDay: 0=Sun..6=Sat. Map: Sat=6,Sun=0,Mon=1,Tue=2,Wed=3,Thu=4
-  const jsTarget = [6,0,1,2,3,4][targetDow];
-  const today = new Date();
-  const diff = (jsTarget - today.getDay() + 7) % 7 || 7; // next occurrence (not today, to be safe)
-  const d = new Date(today);
-  d.setDate(today.getDate() + diff);
-  return d.toISOString().slice(0,10); // YYYY-MM-DD
+// Saturday-start week. JS getDay: Sun=0..Sat=6 → ours: Sat=0..Thu=5 (Fri excluded)
+function jsDayToAr(jsDay: number): number {
+  // Sat=6→0, Sun=0→1, Mon=1→2, Tue=2→3, Wed=3→4, Thu=4→5, Fri=5→-1
+  const m = [1,2,3,4,5,-1,0];
+  return m[jsDay];
+}
+
+function startOfWeekSaturday(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0,0,0,0);
+  // back up to most recent Saturday
+  const back = (out.getDay() + 1) % 7; // Sat=6→0, Sun=0→1, Mon=1→2 ...
+  out.setDate(out.getDate() - back);
+  return out;
+}
+
+function ymd(d: Date) { return d.toISOString().slice(0,10); }
+
+// Returns array of { dow, date } pairs for the requested week
+function weekDates(weekOffset: 0 | 1): { dow: number; date: string }[] {
+  const start = startOfWeekSaturday(new Date());
+  start.setDate(start.getDate() + weekOffset * 7);
+  const out: { dow: number; date: string }[] = [];
+  for (let i = 0; i < 6; i++) { // Sat..Thu (skip Friday at index 6)
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    out.push({ dow: i, date: ymd(d) });
+  }
+  return out;
 }
 
 async function sendWhatsApp(token: string, phoneId: string, to: string, body: string) {
@@ -37,10 +57,7 @@ async function sendWhatsApp(token: string, phoneId: string, to: string, body: st
     method: "POST",
     headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body }
+      messaging_product: "whatsapp", to, type: "text", text: { body }
     })
   });
   if (!res.ok) console.error("WhatsApp send failed:", await res.text());
@@ -51,20 +68,17 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
-  const { data: settings } = await supabase.from("app_settings").select("*").eq("id",1).single();
-  const verifyToken = settings?.whatsapp_verify_token || "borg_alatiba_verify";
-  const token = settings?.whatsapp_token || "";
-  const phoneId = settings?.whatsapp_phone_number_id || "";
 
-  // Verification (GET)
+  // Verification (GET): match the verify_token against ANY active instance
   if (req.method === "GET") {
     const url = new URL(req.url);
     const mode = url.searchParams.get("hub.mode");
     const t = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
-    if (mode === "subscribe" && t === verifyToken) {
-      return new Response(challenge ?? "", { status: 200 });
-    }
+    if (mode !== "subscribe" || !t) return new Response("forbidden", { status: 403 });
+    const { data } = await supabase.from("whatsapp_instances")
+      .select("id").eq("verify_token", t).eq("is_active", true).maybeSingle();
+    if (data) return new Response(challenge ?? "", { status: 200 });
     return new Response("forbidden", { status: 403 });
   }
 
@@ -72,25 +86,41 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const entry = body?.entry?.[0]?.changes?.[0]?.value;
-    const msg = entry?.messages?.[0];
-    if (!msg) return new Response("no message", { status: 200 });
+    const change = body?.entry?.[0]?.changes?.[0]?.value;
+    const incomingPhoneId: string | undefined = change?.metadata?.phone_number_id;
+    const msg = change?.messages?.[0];
+    if (!msg || !incomingPhoneId) return new Response("ignored", { status: 200 });
+
+    // Route to instance
+    const { data: instance } = await supabase.from("whatsapp_instances")
+      .select("*").eq("phone_number_id", incomingPhoneId).maybeSingle();
+    if (!instance) {
+      console.warn("No instance for phone_number_id", incomingPhoneId);
+      return new Response("no instance", { status: 200 });
+    }
+    if (!instance.is_active) {
+      return new Response("instance inactive", { status: 200 });
+    }
+    const token = instance.access_token as string;
+    const phoneId = instance.phone_number_id as string;
+
     const from: string = msg.from;
     const text: string = normalize(msg.text?.body ?? "");
 
-    // Load session
     const { data: sess } = await supabase.from("chat_sessions").select("*").eq("phone", from).maybeSingle();
     let state: any = sess?.state ?? { step: "idle" };
 
-    const reply = async (m: string) => sendWhatsApp(token, phoneId, from, m);
+    const reply = (m: string) => sendWhatsApp(token, phoneId, from, m);
     const save = async (s: any) => {
       await supabase.from("chat_sessions").upsert({ phone: from, state: s, updated_at: new Date().toISOString() });
     };
-    const reset = async () => save({ step: "idle" });
+    const reset = () => save({ step: "idle" });
 
-    // Trigger word resets flow
-    if (text === "تسجيل" || text === "Registration") {
-      const { data: doctors } = await supabase.from("doctors").select("id,name,speciality").order("created_at");
+    if (text === "تسجيل" || text.toLowerCase() === "registration") {
+      const { data: doctors } = await supabase.from("doctors")
+        .select("id,name,speciality,allow_next_week,is_paused")
+        .eq("is_paused", false)
+        .order("created_at");
       if (!doctors || doctors.length === 0) {
         await reply("عذراً، لا يوجد أطباء متاحون حالياً.");
         await reset();
@@ -98,7 +128,7 @@ Deno.serve(async (req) => {
       }
       const list = doctors.map((d, i) => `${i+1}- د. ${d.name} (${d.speciality})`).join("\n");
       await reply(`أهلاً بك في مستشفى برج الأطباء. الرجاء إرسال رقم الطبيب الذي تريد التسجيل لديه:\n\n${list}`);
-      await save({ step: "await_doctor", doctors: doctors.map(d => d.id) });
+      await save({ step: "await_doctor", doctors: doctors.map(d => d.id), instance_id: instance.id });
       return new Response("ok");
     }
 
@@ -111,39 +141,72 @@ Deno.serve(async (req) => {
         }
         const doctorId = state.doctors[n-1];
         const { data: doc } = await supabase.from("doctors").select("*").eq("id", doctorId).single();
-        const { data: schedules } = await supabase.from("schedules").select("*").eq("doctor_id", doctorId);
-        if (!schedules || schedules.length === 0) {
-          await reply("عذراً، لا يوجد جدول عمل لهذا الطبيب حالياً. الرجاء اختيار طبيب آخر بإرسال 'تسجيل'.");
-          await reset();
-          break;
+        if (!doc || doc.is_paused) {
+          await reply("هذا الطبيب غير متاح حالياً. أرسل 'تسجيل' لاختيار آخر.");
+          await reset(); break;
         }
-        const byDay: Record<number,string[]> = {};
-        schedules.forEach(s => { (byDay[s.day_of_week] ||= []).push(SHIFT_AR[s.shift]); });
-        const lines = Object.keys(byDay).map(k => {
-          const d = parseInt(k);
-          return `• ${DAY_NAMES[d]} — ${byDay[d].join(" / ")}`;
-        }).join("\n");
-        await reply(`أيام عمل د. ${doc.name}:\n${lines}\n\nالرجاء إرسال اسم اليوم الذي تريد الحجز فيه.`);
-        await save({ step: "await_day", doctor_id: doctorId });
+        const { data: schedules } = await supabase.from("schedules")
+          .select("*").eq("doctor_id", doctorId).eq("is_paused", false);
+        if (!schedules || schedules.length === 0) {
+          await reply("عذراً، لا يوجد جدول عمل لهذا الطبيب حالياً. أرسل 'تسجيل'.");
+          await reset(); break;
+        }
+
+        // Build available dates (current week, optional next week)
+        const weeksToCheck: (0|1)[] = doc.allow_next_week ? [0,1] : [0];
+        const todayStr = ymd(new Date());
+        const offered: { dow: number; date: string; shifts: string[] }[] = [];
+        for (const w of weeksToCheck) {
+          for (const { dow, date } of weekDates(w)) {
+            if (date < todayStr) continue; // skip past dates this week
+            const matching = schedules.filter(s => s.day_of_week === dow);
+            if (matching.length === 0) continue;
+            offered.push({ dow, date, shifts: matching.map(s => SHIFT_AR[s.shift]) });
+          }
+        }
+
+        if (offered.length === 0) {
+          await reply("لا توجد مواعيد متاحة حالياً.");
+          await reset(); break;
+        }
+
+        const lines = offered.map((o, i) =>
+          `${i+1}- ${DAY_NAMES[o.dow]} ${o.date} — ${o.shifts.join(" / ")}`
+        ).join("\n");
+        await reply(`أيام عمل د. ${doc.name}:\n${lines}\n\nالرجاء إرسال رقم الموعد.`);
+        await save({
+          step: "await_day", doctor_id: doctorId,
+          offered, instance_id: instance.id,
+        });
         break;
       }
       case "await_day": {
-        const dow = DAY_LOOKUP[text];
-        const { data: schedules } = await supabase.from("schedules").select("*").eq("doctor_id", state.doctor_id);
-        const sched = schedules?.find(s => s.day_of_week === dow);
-        if (dow === undefined || !sched) {
-          const days = (schedules||[]).map(s => DAY_NAMES[s.day_of_week]);
-          const uniq = [...new Set(days)].join("، ");
-          await reply(`عذراً، الرجاء اختيار يوم من الأيام المحددة لعيادة الطبيب:\n${uniq}`);
+        let pick: { dow: number; date: string; shifts: string[] } | null = null;
+        const n = parseInt(text, 10);
+        if (n && state.offered && n >= 1 && n <= state.offered.length) {
+          pick = state.offered[n-1];
+        } else {
+          // fallback: try day name → first matching offered date
+          const dow = DAY_LOOKUP[text];
+          if (dow !== undefined) pick = (state.offered ?? []).find((o: any) => o.dow === dow) ?? null;
+        }
+        if (!pick) {
+          await reply("الرجاء إرسال رقم من القائمة.");
           break;
         }
-        const date = nextDateForDay(dow);
-        // Capacity check
-        const { count } = await supabase
-          .from("bookings")
+
+        const { data: sched } = await supabase.from("schedules")
+          .select("*")
+          .eq("doctor_id", state.doctor_id)
+          .eq("day_of_week", pick.dow)
+          .eq("is_paused", false)
+          .limit(1).maybeSingle();
+        if (!sched) { await reply("لم يعد هذا اليوم متاحاً."); break; }
+
+        const { count } = await supabase.from("bookings")
           .select("id", { count: "exact", head: true })
           .eq("doctor_id", state.doctor_id)
-          .eq("booking_date", date);
+          .eq("booking_date", pick.date);
         const used = count ?? 0;
         if (used >= sched.max_capacity) {
           await reply("اكتمل التسجيل في هذا اليوم، الرجاء اختيار يوم آخر.");
@@ -153,17 +216,15 @@ Deno.serve(async (req) => {
         await save({
           step: "await_name",
           doctor_id: state.doctor_id,
-          day_of_week: dow,
-          date,
+          day_of_week: pick.dow,
+          date: pick.date,
           shift: sched.shift,
+          instance_id: state.instance_id,
         });
         break;
       }
       case "await_name": {
-        if (text.length < 5) {
-          await reply("الرجاء إدخال الاسم الرباعي كاملاً.");
-          break;
-        }
+        if (text.length < 5) { await reply("الرجاء إدخال الاسم الرباعي كاملاً."); break; }
         const { error } = await supabase.from("bookings").insert({
           doctor_id: state.doctor_id,
           patient_name: text,
@@ -172,14 +233,15 @@ Deno.serve(async (req) => {
           day_of_week: state.day_of_week,
           shift: state.shift,
           source: "whatsapp",
+          status: "confirmed",
+          whatsapp_instance_id: state.instance_id ?? null,
         });
         if (error) {
           console.error(error);
           await reply("حدث خطأ أثناء حفظ الحجز. الرجاء المحاولة لاحقاً.");
-          await reset();
-          break;
+          await reset(); break;
         }
-        await reply(`تم تأكيد الحجز بنجاح. موعدك هو ( ${DAY_NAMES[state.day_of_week]} ) ( ${state.date} ) ، نتمنى لكم دوام الصحة والعافية.`);
+        await reply(`تم تأكيد الحجز بنجاح. موعدك هو ( ${DAY_NAMES[state.day_of_week]} ) الموافق ( ${state.date} )، نتمنى لكم دوام الصحة والعافية.`);
         await reset();
         break;
       }
@@ -190,6 +252,6 @@ Deno.serve(async (req) => {
     return new Response("ok", { status: 200 });
   } catch (e) {
     console.error("webhook error:", e);
-    return new Response("error", { status: 200 }); // 200 to prevent retries
+    return new Response("error", { status: 200 });
   }
 });

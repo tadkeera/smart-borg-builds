@@ -51,13 +51,14 @@ Deno.serve(async (req) => {
         const { data, error } = await admin.from("doctors").insert({
           name: payload.name, speciality: payload.speciality,
           allow_next_week: !!payload.allow_next_week,
+          allow_two_weeks: !!payload.allow_two_weeks,
           is_paused: !!payload.is_paused,
         }).select().single();
         if (error) throw error; result.data = data; break;
       }
       case "doctor.update": {
         const upd: any = {};
-        ["name","speciality","allow_next_week","is_paused"].forEach(k => { if (k in payload) upd[k] = payload[k]; });
+        ["name","speciality","allow_next_week","allow_two_weeks","is_paused"].forEach(k => { if (k in payload) upd[k] = payload[k]; });
         const { data, error } = await admin.from("doctors").update(upd).eq("id", payload.id).select().single();
         if (error) throw error; result.data = data; break;
       }

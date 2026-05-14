@@ -27,20 +27,29 @@ function jsDayToAr(jsDay: number): number {
 function startOfWeekSaturday(d: Date): Date {
   const out = new Date(d);
   out.setHours(0,0,0,0);
-  // back up to most recent Saturday
-  const back = (out.getDay() + 1) % 7; // Sat=6→0, Sun=0→1, Mon=1→2 ...
+  const back = (out.getDay() + 1) % 7;
   out.setDate(out.getDate() - back);
   return out;
 }
 
+// Active week rolls over every Thursday at 22:00 to the next Sat-week.
+function activeWeekStart(now: Date): Date {
+  const base = startOfWeekSaturday(now);
+  const cutoff = new Date(base);
+  cutoff.setDate(base.getDate() + 5); // Thursday
+  cutoff.setHours(22, 0, 0, 0);
+  if (now >= cutoff) base.setDate(base.getDate() + 7);
+  return base;
+}
+
 function ymd(d: Date) { return d.toISOString().slice(0,10); }
 
-// Returns array of { dow, date } pairs for the requested week
-function weekDates(weekOffset: 0 | 1): { dow: number; date: string }[] {
-  const start = startOfWeekSaturday(new Date());
+// Returns array of { dow, date } pairs for the requested week offset
+function weekDates(weekOffset: number): { dow: number; date: string }[] {
+  const start = activeWeekStart(new Date());
   start.setDate(start.getDate() + weekOffset * 7);
   const out: { dow: number; date: string }[] = [];
-  for (let i = 0; i < 6; i++) { // Sat..Thu (skip Friday at index 6)
+  for (let i = 0; i < 6; i++) { // Sat..Thu (skip Friday)
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     out.push({ dow: i, date: ymd(d) });
@@ -118,7 +127,7 @@ Deno.serve(async (req) => {
 
     if (text === "تسجيل" || text.toLowerCase() === "registration") {
       const { data: doctors } = await supabase.from("doctors")
-        .select("id,name,speciality,allow_next_week,is_paused")
+        .select("id,name,speciality,allow_next_week,allow_two_weeks,is_paused")
         .eq("is_paused", false)
         .order("created_at");
       if (!doctors || doctors.length === 0) {
@@ -153,7 +162,7 @@ Deno.serve(async (req) => {
         }
 
         // Build available dates (current week, optional next week)
-        const weeksToCheck: (0|1)[] = doc.allow_next_week ? [0,1] : [0];
+        const weeksToCheck: number[] = doc.allow_two_weeks ? [0,1,2] : (doc.allow_next_week ? [0,1] : [0]);
         const todayStr = ymd(new Date());
         const offered: { dow: number; date: string; shifts: string[] }[] = [];
         for (const w of weeksToCheck) {
@@ -241,7 +250,7 @@ Deno.serve(async (req) => {
           await reply("حدث خطأ أثناء حفظ الحجز. الرجاء المحاولة لاحقاً.");
           await reset(); break;
         }
-        await reply(`تم تأكيد الحجز بنجاح. موعدك هو ( ${DAY_NAMES[state.day_of_week]} ) الموافق ( ${state.date} )، نتمنى لكم دوام الصحة والعافية.`);
+        await reply(`تم تأكيد الحجز بنجاح.\nالاسم: ${text}\nموعدك هو ${DAY_NAMES[state.day_of_week]} الموافق ${state.date}\nالفترة: ${SHIFT_AR[state.shift] ?? state.shift}\nنتمنى لكم دوام الصحة والعافية.`);
         await reset();
         break;
       }

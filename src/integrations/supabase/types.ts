@@ -125,6 +125,7 @@ export type Database = {
       doctors: {
         Row: {
           allow_next_week: boolean
+          allow_two_weeks: boolean
           created_at: string
           id: string
           is_paused: boolean
@@ -133,6 +134,7 @@ export type Database = {
         }
         Insert: {
           allow_next_week?: boolean
+          allow_two_weeks?: boolean
           created_at?: string
           id?: string
           is_paused?: boolean
@@ -141,6 +143,7 @@ export type Database = {
         }
         Update: {
           allow_next_week?: boolean
+          allow_two_weeks?: boolean
           created_at?: string
           id?: string
           is_paused?: boolean

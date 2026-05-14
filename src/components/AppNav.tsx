@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { CalendarDays, Users, ClipboardList, MessageCircle, Settings } from "lucide-react";
+import { CalendarDays, Users, ClipboardList, MessageCircle, Settings, BarChart3 } from "lucide-react";
 
 const items = [
   { to: "/dashboard", label: "الحجوزات", icon: ClipboardList, adminOnly: false },
+  { to: "/dashboard/reports", label: "التقارير", icon: BarChart3, adminOnly: true },
   { to: "/dashboard/doctors", label: "الأطباء", icon: Users, adminOnly: true },
   { to: "/dashboard/schedules", label: "الجداول", icon: CalendarDays, adminOnly: true },
   { to: "/dashboard/whatsapp", label: "الواتساب", icon: MessageCircle, adminOnly: true },

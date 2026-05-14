@@ -1,213 +1,159 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DAY_NAMES, SHIFT_LABEL, adminAction } from "@/lib/admin-api";
-import { useAuth } from "@/lib/auth";
-import { Trash2, RefreshCcw } from "lucide-react";
+import { RefreshCcw, ChevronLeft, Users, CalendarDays, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/dashboard/")({ component: BookingsPage });
+export const Route = createFileRoute("/dashboard/")({ component: BookingsOverview });
 
-interface Doctor { id: string; name: string; speciality: string; }
-interface Schedule { id: string; doctor_id: string; day_of_week: number; shift: string; max_capacity: number; }
-interface Booking {
-  id: string; doctor_id: string; patient_name: string; patient_phone: string|null;
-  booking_date: string; day_of_week: number; shift: string|null; status: string; created_at: string;
+interface Doctor { id: string; name: string; speciality: string; is_paused: boolean; }
+interface Schedule { id: string; doctor_id: string; day_of_week: number; shift: string; max_capacity: number; is_paused: boolean; }
+interface Booking { id: string; doctor_id: string; booking_date: string; status: string; }
+
+// Active week start (Sat) — rolls forward Thu 22:00
+function activeWeekStart(now = new Date()): Date {
+  const base = new Date(now); base.setHours(0,0,0,0);
+  const back = (base.getDay() + 1) % 7;
+  base.setDate(base.getDate() - back);
+  const cutoff = new Date(base); cutoff.setDate(base.getDate()+5); cutoff.setHours(22,0,0,0);
+  if (now >= cutoff) base.setDate(base.getDate() + 7);
+  return base;
 }
+const ymd = (d: Date) => d.toISOString().slice(0,10);
 
-function BookingsPage() {
-  const { isAdmin } = useAuth();
+function BookingsOverview() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [date, setDate] = useState<string>("");
-  const [doctorFilter, setDoctorFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [date, setDate] = useState<string>(ymd(new Date()));
+  const [shiftFilter, setShiftFilter] = useState<string>("all");
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
+      const start = activeWeekStart();
+      const end = new Date(start); end.setDate(start.getDate()+13); // up to 2 weeks ahead
       const [d, s, b] = await Promise.all([
         supabase.from("doctors").select("*").order("name"),
         supabase.from("schedules").select("*"),
-        supabase.from("bookings").select("*")
-          .order("booking_date", { ascending: false })
-          .order("created_at", { ascending: false }),
+        supabase.from("bookings").select("id,doctor_id,booking_date,status")
+          .gte("booking_date", ymd(start)).lte("booking_date", ymd(end)),
       ]);
       setDoctors((d.data ?? []) as Doctor[]);
       setSchedules((s.data ?? []) as Schedule[]);
       setBookings((b.data ?? []) as Booking[]);
-    } catch (e: any) { toast.error(e.message || "تعذّر تحميل البيانات"); }
+    } catch (e: any) { toast.error(e.message || "تعذّر التحميل"); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [date]);
   useEffect(() => {
-    const ch = supabase.channel("bookings-rt")
+    const ch = supabase.channel("bookings-rt-overview")
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const filtered = useMemo(() => bookings.filter(b => {
-    if (date && b.booking_date !== date) return false;
-    if (doctorFilter !== "all" && b.doctor_id !== doctorFilter) return false;
-    if (statusFilter !== "all" && b.status !== statusFilter) return false;
-    return true;
-  }), [bookings, date, doctorFilter, statusFilter]);
+  // Map JS day → our dow (Sat=0..Thu=5, Fri=-1)
+  const dow = useMemo(() => {
+    const dt = new Date(date + "T00:00:00");
+    return ([1,2,3,4,5,-1,0])[dt.getDay()];
+  }, [date]);
 
-  const docName = (id: string) => doctors.find(d => d.id === id)?.name ?? "—";
-  const capacityFor = (doctorId: string, dow: number) =>
-    schedules.filter(s => s.doctor_id === doctorId && s.day_of_week === dow).reduce((a,s)=>a+s.max_capacity,0);
-  const usedFor = (doctorId: string, dt: string) =>
-    bookings.filter(b => b.doctor_id === doctorId && b.booking_date === dt).length;
+  const doctorStats = useMemo(() => doctors.map(d => {
+    const matching = schedules.filter(s => s.doctor_id === d.id && s.day_of_week === dow && !s.is_paused
+      && (shiftFilter === "all" || s.shift === shiftFilter));
+    const capacity = matching.reduce((a,s) => a + s.max_capacity, 0);
+    const used = bookings.filter(b => b.doctor_id === d.id && b.booking_date === date && b.status !== "cancelled").length;
+    return { doctor: d, capacity, used, remaining: Math.max(0, capacity - used) };
+  }), [doctors, schedules, bookings, dow, date, shiftFilter]);
 
-  const today = new Date();
-  // JS getDay → Sat=0..Thu=5 (Fri excluded with -1)
-  const todayDow = ([1,2,3,4,5,-1,0])[today.getDay()];
-  const todayStr = today.toISOString().slice(0,10);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("حذف هذا الحجز؟")) return;
-    try { await adminAction("booking.delete", { id }); toast.success("تم الحذف"); load(); }
-    catch (e: any) { toast.error(e.message); }
-  };
-
-  const handleStatus = async (id: string, status: string) => {
-    try { await adminAction("booking.updateStatus", { id, status }); load(); }
-    catch (e: any) { toast.error(e.message); }
-  };
+  const totalCapacity = doctorStats.reduce((a,s) => a + s.capacity, 0);
+  const totalUsed = doctorStats.reduce((a,s) => a + s.used, 0);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-primary">الحجوزات</h2>
-          <p className="text-sm text-muted-foreground">عرض حجوزات المرضى والسعة المتبقية لكل طبيب.</p>
+          <h2 className="text-3xl font-bold text-primary">الحجوزات</h2>
+          <p className="text-sm text-muted-foreground">عرض السعة المتاحة لكل طبيب — اضغط على البطاقة للاطلاع على التفاصيل.</p>
         </div>
         <Button variant="outline" onClick={load} disabled={loading}>
           <RefreshCcw className="h-4 w-4 ml-1" /> تحديث
         </Button>
       </div>
 
-      {todayDow >= 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">السعة المتبقية اليوم ({DAY_NAMES[todayDow]} - {todayStr})</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {doctors.map(d => {
-              const cap = capacityFor(d.id, todayDow);
-              const used = usedFor(d.id, todayStr);
-              const remaining = Math.max(0, cap - used);
-              if (cap === 0) return null;
-              return (
-                <Card key={d.id} className="p-4">
-                  <div className="font-semibold">د. {d.name}</div>
-                  <div className="text-xs text-muted-foreground">{d.speciality}</div>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-primary">{remaining}</span>
-                    <span className="text-xs text-muted-foreground">متبقي من {cap}</span>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="p-4 flex items-center gap-3"><Users className="h-8 w-8 text-primary" /><div><div className="text-xs text-muted-foreground">عدد الأطباء</div><div className="text-2xl font-bold">{doctors.length}</div></div></Card>
+        <Card className="p-4 flex items-center gap-3"><CalendarDays className="h-8 w-8 text-primary" /><div><div className="text-xs text-muted-foreground">السعة الإجمالية لليوم</div><div className="text-2xl font-bold">{totalCapacity}</div></div></Card>
+        <Card className="p-4 flex items-center gap-3"><CheckCircle2 className="h-8 w-8 text-primary" /><div><div className="text-xs text-muted-foreground">الحجوزات اليوم</div><div className="text-2xl font-bold">{totalUsed}</div></div></Card>
+      </div>
 
       <Card className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="space-y-1">
-            <Label>التاريخ</Label>
-            <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label>الطبيب</Label>
-            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الأطباء</SelectItem>
-                {doctors.map(d => <SelectItem key={d.id} value={d.id}>د. {d.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>الحالة</Label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1"><Label>التاريخ</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+          <div className="space-y-1"><Label>الفترة</Label>
+            <Select value={shiftFilter} onValueChange={setShiftFilter}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="confirmed">مؤكد</SelectItem>
-                <SelectItem value="completed">مكتمل</SelectItem>
-                <SelectItem value="cancelled">ملغي</SelectItem>
+                <SelectItem value="morning">صباحي</SelectItem>
+                <SelectItem value="evening">مسائي</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1 flex flex-col">
-            <Label>&nbsp;</Label>
-            <Button variant="ghost" onClick={() => { setDate(""); setDoctorFilter("all"); setStatusFilter("all"); }}>مسح الفلاتر</Button>
+          <div className="space-y-1 flex flex-col"><Label>&nbsp;</Label>
+            <Button variant="ghost" onClick={() => { setDate(ymd(new Date())); setShiftFilter("all"); }}>إعادة الضبط</Button>
           </div>
         </div>
       </Card>
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/60">
-              <tr className="text-right">
-                <th className="p-3 font-semibold">المريض</th>
-                <th className="p-3 font-semibold">الطبيب</th>
-                <th className="p-3 font-semibold">اليوم</th>
-                <th className="p-3 font-semibold">التاريخ</th>
-                <th className="p-3 font-semibold">الفترة</th>
-                <th className="p-3 font-semibold">الجوال</th>
-                <th className="p-3 font-semibold">الحالة</th>
-                {isAdmin && <th className="p-3 font-semibold">إجراء</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={isAdmin ? 8 : 7} className="p-6 text-center text-muted-foreground">لا توجد حجوزات</td></tr>
-              )}
-              {filtered.map(b => (
-                <tr key={b.id} className="border-t hover:bg-muted/40">
-                  <td className="p-3 font-medium">{b.patient_name}</td>
-                  <td className="p-3">د. {docName(b.doctor_id)}</td>
-                  <td className="p-3">{DAY_NAMES[b.day_of_week]}</td>
-                  <td className="p-3 font-mono">{b.booking_date}</td>
-                  <td className="p-3">{b.shift ? SHIFT_LABEL[b.shift] : "—"}</td>
-                  <td className="p-3 font-mono text-xs" dir="ltr">{b.patient_phone || "—"}</td>
-                  <td className="p-3">
-                    {isAdmin ? (
-                      <Select value={b.status} onValueChange={(v) => handleStatus(b.id, v)}>
-                        <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="confirmed">مؤكد</SelectItem>
-                          <SelectItem value="completed">مكتمل</SelectItem>
-                          <SelectItem value="cancelled">ملغي</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-xs">{b.status === "confirmed" ? "مؤكد" : b.status === "completed" ? "مكتمل" : b.status === "cancelled" ? "ملغي" : b.status}</span>
-                    )}
-                  </td>
-                  {isAdmin && (
-                    <td className="p-3">
-                      <Button size="sm" variant="ghost" onClick={() => handleDelete(b.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {dow < 0 ? (
+        <Card className="p-8 text-center text-muted-foreground">يوم الجمعة عطلة — لا توجد حجوزات.</Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {doctorStats.length === 0 && <Card className="p-8 text-center text-muted-foreground col-span-full">لا يوجد أطباء.</Card>}
+          {doctorStats.map(({ doctor, capacity, used, remaining }) => {
+            const pct = capacity > 0 ? Math.round((used / capacity) * 100) : 0;
+            const full = capacity > 0 && remaining === 0;
+            return (
+              <Link key={doctor.id} to="/dashboard/doctor/$doctorId" params={{ doctorId: doctor.id }} className="group">
+                <Card className="p-5 transition-all hover:shadow-lg hover:-translate-y-0.5 cursor-pointer h-full flex flex-col justify-between border-2 hover:border-primary/40"
+                  style={{ background: "var(--gradient-soft)" }}>
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-lg font-bold">د. {doctor.name}</div>
+                        <div className="text-xs text-muted-foreground">{doctor.speciality}</div>
+                      </div>
+                      {doctor.is_paused && <span className="text-xs rounded-full bg-destructive/15 text-destructive px-2 py-0.5">موقوف</span>}
+                      {full && !doctor.is_paused && <span className="text-xs rounded-full bg-amber-500/15 text-amber-700 px-2 py-0.5">مكتمل</span>}
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="text-xs text-muted-foreground">المتبقي</span>
+                      <span className="text-3xl font-bold text-primary">{remaining}<span className="text-sm text-muted-foreground font-normal"> / {capacity}</span></span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+                      <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>محجوز: {used}</span>
+                      <span className="text-primary group-hover:underline">عرض الحجوزات ←</span>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
-      </Card>
+      )}
     </div>
   );
 }

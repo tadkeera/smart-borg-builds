@@ -73,17 +73,24 @@ Deno.serve(async (req) => {
           allow_two_weeks: !!payload.allow_two_weeks,
           is_paused: !!payload.is_paused,
         }).select().single();
-        if (error) throw error; result.data = data; break;
+        if (error) throw error; result.data = data;
+        await audit("doctor", data.id, { name: data.name, speciality: data.speciality });
+        break;
       }
       case "doctor.update": {
         const upd: any = {};
         ["name","speciality","allow_next_week","allow_two_weeks","is_paused"].forEach(k => { if (k in payload) upd[k] = payload[k]; });
         const { data, error } = await admin.from("doctors").update(upd).eq("id", payload.id).select().single();
-        if (error) throw error; result.data = data; break;
+        if (error) throw error; result.data = data;
+        await audit("doctor", payload.id, { changes: upd });
+        break;
       }
       case "doctor.delete": {
+        const { data: prev } = await admin.from("doctors").select("name,speciality").eq("id", payload.id).maybeSingle();
         const { error } = await admin.from("doctors").delete().eq("id", payload.id);
-        if (error) throw error; break;
+        if (error) throw error;
+        await audit("doctor", payload.id, { deleted: prev });
+        break;
       }
 
       // Schedules
@@ -95,27 +102,38 @@ Deno.serve(async (req) => {
           max_capacity: payload.max_capacity,
           is_paused: !!payload.is_paused,
         }, { onConflict: "doctor_id,day_of_week,shift" }).select().single();
-        if (error) throw error; result.data = data; break;
+        if (error) throw error; result.data = data;
+        await audit("schedule", data.id, { doctor_id: data.doctor_id, day_of_week: data.day_of_week, shift: data.shift, max_capacity: data.max_capacity });
+        break;
       }
       case "schedule.update": {
         const upd: any = {};
         ["max_capacity","is_paused"].forEach(k => { if (k in payload) upd[k] = payload[k]; });
         const { data, error } = await admin.from("schedules").update(upd).eq("id", payload.id).select().single();
-        if (error) throw error; result.data = data; break;
+        if (error) throw error; result.data = data;
+        await audit("schedule", payload.id, { changes: upd });
+        break;
       }
       case "schedule.delete": {
         const { error } = await admin.from("schedules").delete().eq("id", payload.id);
-        if (error) throw error; break;
+        if (error) throw error;
+        await audit("schedule", payload.id, {});
+        break;
       }
 
       // Bookings
       case "booking.delete": {
+        const { data: prev } = await admin.from("bookings").select("patient_name,booking_date,doctor_id").eq("id", payload.id).maybeSingle();
         const { error } = await admin.from("bookings").delete().eq("id", payload.id);
-        if (error) throw error; break;
+        if (error) throw error;
+        await audit("booking", payload.id, { deleted: prev });
+        break;
       }
       case "booking.updateStatus": {
         const { data, error } = await admin.from("bookings").update({ status: payload.status }).eq("id", payload.id).select().single();
-        if (error) throw error; result.data = data; break;
+        if (error) throw error; result.data = data;
+        await audit("booking", payload.id, { status: payload.status, patient_name: data.patient_name });
+        break;
       }
 
       // WhatsApp instances

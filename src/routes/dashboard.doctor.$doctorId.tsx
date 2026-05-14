@@ -27,6 +27,7 @@ function DoctorBookingsPage() {
   const [date, setDate] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [shiftFilter, setShiftFilter] = useState<string>("all");
+  const [search, setSearch] = useState<string>("");
 
   const load = async () => {
     const [d, b] = await Promise.all([
@@ -49,8 +50,14 @@ function DoctorBookingsPage() {
     if (date && b.booking_date !== date) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     if (shiftFilter !== "all" && b.shift !== shiftFilter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const phone = (b.patient_phone || "").toLowerCase();
+      const name = (b.patient_name || "").toLowerCase();
+      if (!name.includes(q) && !phone.includes(q)) return false;
+    }
     return true;
-  }), [bookings, date, statusFilter, shiftFilter]);
+  }), [bookings, date, statusFilter, shiftFilter, search]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("حذف هذا الحجز؟")) return;

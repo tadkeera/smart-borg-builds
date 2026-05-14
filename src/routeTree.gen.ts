@@ -17,6 +17,7 @@ import { Route as DashboardWhatsappRouteImport } from './routes/dashboard.whatsa
 import { Route as DashboardSchedulesRouteImport } from './routes/dashboard.schedules'
 import { Route as DashboardReportsRouteImport } from './routes/dashboard.reports'
 import { Route as DashboardDoctorsRouteImport } from './routes/dashboard.doctors'
+import { Route as DashboardAuditRouteImport } from './routes/dashboard.audit'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
 import { Route as DashboardDoctorDoctorIdRouteImport } from './routes/dashboard.doctor.$doctorId'
 
@@ -60,6 +61,11 @@ const DashboardDoctorsRoute = DashboardDoctorsRouteImport.update({
   path: '/doctors',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardAuditRoute = DashboardAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardAccountRoute = DashboardAccountRouteImport.update({
   id: '/account',
   path: '/account',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/audit': typeof DashboardAuditRoute
   '/dashboard/doctors': typeof DashboardDoctorsRoute
   '/dashboard/reports': typeof DashboardReportsRoute
   '/dashboard/schedules': typeof DashboardSchedulesRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/audit': typeof DashboardAuditRoute
   '/dashboard/doctors': typeof DashboardDoctorsRoute
   '/dashboard/reports': typeof DashboardReportsRoute
   '/dashboard/schedules': typeof DashboardSchedulesRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/dashboard/account': typeof DashboardAccountRoute
+  '/dashboard/audit': typeof DashboardAuditRoute
   '/dashboard/doctors': typeof DashboardDoctorsRoute
   '/dashboard/reports': typeof DashboardReportsRoute
   '/dashboard/schedules': typeof DashboardSchedulesRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/dashboard/account'
+    | '/dashboard/audit'
     | '/dashboard/doctors'
     | '/dashboard/reports'
     | '/dashboard/schedules'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard/account'
+    | '/dashboard/audit'
     | '/dashboard/doctors'
     | '/dashboard/reports'
     | '/dashboard/schedules'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/dashboard/account'
+    | '/dashboard/audit'
     | '/dashboard/doctors'
     | '/dashboard/reports'
     | '/dashboard/schedules'
@@ -209,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardDoctorsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/audit': {
+      id: '/dashboard/audit'
+      path: '/audit'
+      fullPath: '/dashboard/audit'
+      preLoaderRoute: typeof DashboardAuditRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/account': {
       id: '/dashboard/account'
       path: '/account'
@@ -228,6 +247,7 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAccountRoute: typeof DashboardAccountRoute
+  DashboardAuditRoute: typeof DashboardAuditRoute
   DashboardDoctorsRoute: typeof DashboardDoctorsRoute
   DashboardReportsRoute: typeof DashboardReportsRoute
   DashboardSchedulesRoute: typeof DashboardSchedulesRoute
@@ -238,6 +258,7 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAccountRoute: DashboardAccountRoute,
+  DashboardAuditRoute: DashboardAuditRoute,
   DashboardDoctorsRoute: DashboardDoctorsRoute,
   DashboardReportsRoute: DashboardReportsRoute,
   DashboardSchedulesRoute: DashboardSchedulesRoute,

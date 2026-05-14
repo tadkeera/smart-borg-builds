@@ -45,6 +45,25 @@ Deno.serve(async (req) => {
     const { action, payload } = (await req.json()) ?? {};
     let result: any = { ok: true };
 
+    const userInfo = userRes.user;
+    const userDisplay = (userInfo.user_metadata as any)?.display_name
+      ?? (userInfo.user_metadata as any)?.username
+      ?? userInfo.email
+      ?? "";
+    const audit = async (entity: string, entityId: string | null, details: Record<string, unknown> = {}) => {
+      try {
+        await admin.from("audit_logs").insert({
+          user_id: userId,
+          user_email: userInfo.email ?? null,
+          user_display_name: userDisplay,
+          action,
+          entity,
+          entity_id: entityId,
+          details,
+        });
+      } catch (e) { console.error("audit log failed:", e); }
+    };
+
     switch (action) {
       // Doctors
       case "doctor.create": {

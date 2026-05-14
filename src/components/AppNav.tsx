@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { CalendarDays, Users, ClipboardList, MessageCircle, Settings, BarChart3 } from "lucide-react";
+import { CalendarDays, Users, ClipboardList, MessageCircle, Settings, BarChart3, ScrollText } from "lucide-react";
 
 const items = [
   { to: "/dashboard", label: "الحجوزات", icon: ClipboardList, adminOnly: false },
@@ -8,6 +8,7 @@ const items = [
   { to: "/dashboard/doctors", label: "الأطباء", icon: Users, adminOnly: true },
   { to: "/dashboard/schedules", label: "الجداول", icon: CalendarDays, adminOnly: true },
   { to: "/dashboard/whatsapp", label: "الواتساب", icon: MessageCircle, adminOnly: true },
+  { to: "/dashboard/audit", label: "سجل التدقيق", icon: ScrollText, adminOnly: true },
   { to: "/dashboard/account", label: "الحساب", icon: Settings, adminOnly: true },
 ];
 

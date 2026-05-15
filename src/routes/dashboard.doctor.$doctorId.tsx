@@ -17,6 +17,7 @@ interface Doctor { id: string; name: string; speciality: string; }
 interface Booking {
   id: string; doctor_id: string; patient_name: string; patient_phone: string|null;
   booking_date: string; day_of_week: number; shift: string|null; status: string; created_at: string;
+  queue_number: number|null;
 }
 
 function DoctorBookingsPage() {

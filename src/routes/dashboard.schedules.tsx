@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { adminAction, DAY_NAMES, SHIFT_LABEL } from "@/lib/admin-api";
 import { RequireAuth } from "@/components/RequireAuth";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/schedules")({
@@ -29,6 +29,8 @@ function SchedulesPage() {
   const [day, setDay] = useState<string>("0");
   const [shift, setShift] = useState<"morning"|"evening">("morning");
   const [cap, setCap] = useState<number>(20);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCap, setEditCap] = useState<number>(0);
 
   const load = async () => {
     const [d, s] = await Promise.all([
@@ -147,7 +149,15 @@ function SchedulesPage() {
                       <tr key={s.id} className="border-t">
                         <td className="p-2">{DAY_NAMES[s.day_of_week]}</td>
                         <td className="p-2">{SHIFT_LABEL[s.shift]}</td>
-                        <td className="p-2 font-semibold">{s.max_capacity}</td>
+                        <td className="p-2 font-semibold">
+                          {editingId === s.id ? (
+                            <Input
+                              type="number" min={0} value={editCap}
+                              className="h-8 w-24"
+                              onChange={e => setEditCap(parseInt(e.target.value) || 0)}
+                            />
+                          ) : s.max_capacity}
+                        </td>
                         <td className="p-2">
                           <label className="inline-flex items-center gap-2">
                             <Switch checked={!s.is_paused} onCheckedChange={() => togglePause(s)} />
@@ -155,9 +165,33 @@ function SchedulesPage() {
                           </label>
                         </td>
                         <td className="p-2">
-                          <Button size="sm" variant="ghost" onClick={() => remove(s.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex gap-1">
+                            {editingId === s.id ? (
+                              <>
+                                <Button size="sm" variant="ghost" onClick={async () => {
+                                  try {
+                                    await adminAction("schedule.update", { id: s.id, max_capacity: editCap });
+                                    toast.success("تم تحديث السعة");
+                                    setEditingId(null); load();
+                                  } catch (e: any) { toast.error(e.message); }
+                                }}>
+                                  <Check className="h-4 w-4 text-primary" />
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                setEditingId(s.id); setEditCap(s.max_capacity);
+                              }}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => remove(s.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

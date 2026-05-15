@@ -31,6 +31,8 @@ function SchedulesPage() {
   const [cap, setCap] = useState<number>(20);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCap, setEditCap] = useState<number>(0);
+
+  const load = async () => {
     const [d, s] = await Promise.all([
       supabase.from("doctors").select("id,name,allow_next_week").order("name"),
       supabase.from("schedules").select("*"),

@@ -92,6 +92,7 @@ export type Database = {
           id: string
           patient_name: string
           patient_phone: string | null
+          queue_number: number | null
           shift: string | null
           source: string
           status: string
@@ -105,6 +106,7 @@ export type Database = {
           id?: string
           patient_name: string
           patient_phone?: string | null
+          queue_number?: number | null
           shift?: string | null
           source?: string
           status?: string
@@ -118,6 +120,7 @@ export type Database = {
           id?: string
           patient_name?: string
           patient_phone?: string | null
+          queue_number?: number | null
           shift?: string | null
           source?: string
           status?: string

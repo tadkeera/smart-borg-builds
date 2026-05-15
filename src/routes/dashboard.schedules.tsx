@@ -29,8 +29,8 @@ function SchedulesPage() {
   const [day, setDay] = useState<string>("0");
   const [shift, setShift] = useState<"morning"|"evening">("morning");
   const [cap, setCap] = useState<number>(20);
-
-  const load = async () => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCap, setEditCap] = useState<number>(0);
     const [d, s] = await Promise.all([
       supabase.from("doctors").select("id,name,allow_next_week").order("name"),
       supabase.from("schedules").select("*"),

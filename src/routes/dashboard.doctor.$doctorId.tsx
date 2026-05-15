@@ -34,7 +34,10 @@ function DoctorBookingsPage() {
     const [d, b] = await Promise.all([
       supabase.from("doctors").select("id,name,speciality").eq("id", doctorId).maybeSingle(),
       supabase.from("bookings").select("*").eq("doctor_id", doctorId)
-        .order("booking_date", { ascending: false }).order("created_at", { ascending: false }),
+        .order("booking_date", { ascending: false })
+        .order("shift", { ascending: true })
+        .order("queue_number", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true }),
     ]);
     setDoctor(d.data as Doctor | null);
     setBookings((b.data ?? []) as Booking[]);

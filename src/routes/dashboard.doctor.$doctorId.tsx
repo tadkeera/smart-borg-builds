@@ -17,6 +17,7 @@ interface Doctor { id: string; name: string; speciality: string; }
 interface Booking {
   id: string; doctor_id: string; patient_name: string; patient_phone: string|null;
   booking_date: string; day_of_week: number; shift: string|null; status: string; created_at: string;
+  queue_number: number|null;
 }
 
 function DoctorBookingsPage() {
@@ -33,7 +34,10 @@ function DoctorBookingsPage() {
     const [d, b] = await Promise.all([
       supabase.from("doctors").select("id,name,speciality").eq("id", doctorId).maybeSingle(),
       supabase.from("bookings").select("*").eq("doctor_id", doctorId)
-        .order("booking_date", { ascending: false }).order("created_at", { ascending: false }),
+        .order("booking_date", { ascending: false })
+        .order("shift", { ascending: true })
+        .order("queue_number", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true }),
     ]);
     setDoctor(d.data as Doctor | null);
     setBookings((b.data ?? []) as Booking[]);
@@ -123,6 +127,7 @@ function DoctorBookingsPage() {
           <table className="w-full text-sm">
             <thead className="bg-secondary/60">
               <tr className="text-right">
+                <th className="p-3 font-semibold w-16">الدور</th>
                 <th className="p-3 font-semibold">المريض</th>
                 <th className="p-3 font-semibold">اليوم</th>
                 <th className="p-3 font-semibold">التاريخ</th>
@@ -133,9 +138,16 @@ function DoctorBookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={isAdmin?7:6} className="p-6 text-center text-muted-foreground">لا توجد حجوزات</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={isAdmin?8:7} className="p-6 text-center text-muted-foreground">لا توجد حجوزات</td></tr>}
               {filtered.map(b => (
                 <tr key={b.id} className="border-t hover:bg-muted/40">
+                  <td className="p-3">
+                    {b.queue_number != null ? (
+                      <span className="inline-flex items-center justify-center min-w-8 h-8 px-2 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                        {b.queue_number}
+                      </span>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="p-3 font-medium">{b.patient_name}</td>
                   <td className="p-3">{DAY_NAMES[b.day_of_week]}</td>
                   <td className="p-3 font-mono">{b.booking_date}</td>

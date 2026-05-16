@@ -50,7 +50,7 @@ function DoctorsPage() {
   const save = async () => {
     if (!name.trim() || !spec.trim()) { toast.error("الاسم والتخصص مطلوبان"); return; }
     try {
-      const payload: any = { name, speciality: spec, allow_next_week: allowNext, allow_two_weeks: allowTwo, is_paused: paused };
+      const payload: any = { name, speciality: spec, allow_next_week: allowNext, allow_two_weeks: allowTwo, is_paused: paused, has_booking_limit: hasLimit };
       if (editing) {
         await adminAction("doctor.update", { id: editing.id, ...payload });
         toast.success("تم التعديل");

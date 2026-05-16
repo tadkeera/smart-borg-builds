@@ -31,6 +31,7 @@ function DoctorsPage() {
   const [allowNext, setAllowNext] = useState(false);
   const [allowTwo, setAllowTwo] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [hasLimit, setHasLimit] = useState(true);
 
   const load = async () => {
     const { data } = await supabase.from("doctors").select("*").order("name");
@@ -39,11 +40,11 @@ function DoctorsPage() {
   useEffect(() => { load(); }, []);
 
   const startAdd = () => {
-    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setAllowTwo(false); setPaused(false); setOpen(true);
+    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setAllowTwo(false); setPaused(false); setHasLimit(true); setOpen(true);
   };
   const startEdit = (d: Doctor) => {
     setEditing(d); setName(d.name); setSpec(d.speciality);
-    setAllowNext(d.allow_next_week); setAllowTwo(d.allow_two_weeks); setPaused(d.is_paused); setOpen(true);
+    setAllowNext(d.allow_next_week); setAllowTwo(d.allow_two_weeks); setPaused(d.is_paused); setHasLimit(d.has_booking_limit ?? true); setOpen(true);
   };
 
   const save = async () => {

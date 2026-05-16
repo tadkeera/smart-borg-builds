@@ -98,6 +98,10 @@ function DoctorsPage() {
                 <Switch checked={allowTwo} onCheckedChange={setAllowTwo} />
               </label>
               <label className="flex items-center justify-between gap-2 rounded-md border p-3">
+                <span className="text-sm">تطبيق حد أقصى 2 مرضى لنفس الرقم</span>
+                <Switch checked={hasLimit} onCheckedChange={setHasLimit} />
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-3">
                 <span className="text-sm">إيقاف مؤقت لجميع الحجوزات لهذا الطبيب</span>
                 <Switch checked={paused} onCheckedChange={setPaused} />
               </label>

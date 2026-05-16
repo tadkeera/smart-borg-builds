@@ -123,18 +123,20 @@ function DoctorsPage() {
                 <th className="p-3 font-semibold">التخصص</th>
                 <th className="p-3 font-semibold">أسبوع قادم</th>
                 <th className="p-3 font-semibold">١٤ يوم</th>
+                <th className="p-3 font-semibold">حد ٢ لكل رقم</th>
                 <th className="p-3 font-semibold">الحالة</th>
                 <th className="p-3 font-semibold">إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {doctors.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا يوجد أطباء بعد</td></tr>}
+              {doctors.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا يوجد أطباء بعد</td></tr>}
               {doctors.map(d => (
                 <tr key={d.id} className="border-t hover:bg-muted/40">
                   <td className="p-3 font-medium">د. {d.name}</td>
                   <td className="p-3">{d.speciality}</td>
                   <td className="p-3"><Switch checked={d.allow_next_week} onCheckedChange={(v) => toggleField(d, "allow_next_week", v)} /></td>
                   <td className="p-3"><Switch checked={d.allow_two_weeks} onCheckedChange={(v) => toggleField(d, "allow_two_weeks", v)} /></td>
+                  <td className="p-3"><Switch checked={d.has_booking_limit ?? true} onCheckedChange={(v) => toggleField(d, "has_booking_limit", v)} /></td>
                   <td className="p-3">
                     <label className="inline-flex items-center gap-2">
                       <Switch checked={!d.is_paused} onCheckedChange={(v) => toggleField(d, "is_paused", !v)} />

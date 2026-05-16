@@ -1,0 +1,1 @@
+ALTER TABLE public.doctors ADD COLUMN IF NOT EXISTS has_booking_limit boolean NOT NULL DEFAULT true;

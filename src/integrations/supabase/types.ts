@@ -166,6 +166,7 @@ export type Database = {
           allow_next_week: boolean
           allow_two_weeks: boolean
           created_at: string
+          has_booking_limit: boolean
           id: string
           is_paused: boolean
           name: string
@@ -175,6 +176,7 @@ export type Database = {
           allow_next_week?: boolean
           allow_two_weeks?: boolean
           created_at?: string
+          has_booking_limit?: boolean
           id?: string
           is_paused?: boolean
           name: string
@@ -184,6 +186,7 @@ export type Database = {
           allow_next_week?: boolean
           allow_two_weeks?: boolean
           created_at?: string
+          has_booking_limit?: boolean
           id?: string
           is_paused?: boolean
           name?: string

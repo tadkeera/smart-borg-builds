@@ -147,15 +147,17 @@ Deno.serve(async (req) => {
           await reset(); break;
         }
 
-        // Anti-spam: max bookings per phone per doctor (active+confirmed only)
-        const { count: phoneCount } = await supabase.from("bookings")
-          .select("id", { count: "exact", head: true })
-          .eq("doctor_id", doctorId)
-          .eq("patient_phone", from)
-          .neq("status", "cancelled");
-        if ((phoneCount ?? 0) >= MAX_PER_PHONE_PER_DOCTOR) {
-          await reply(`عذراً، تم الوصول للحد الأقصى من الحجوزات لهذا الطبيب من نفس الرقم (${MAX_PER_PHONE_PER_DOCTOR} مرضى كحد أقصى).`);
-          await reset(); break;
+        // Anti-spam: max bookings per phone per doctor — only if enabled for this doctor
+        if (doc.has_booking_limit !== false) {
+          const { count: phoneCount } = await supabase.from("bookings")
+            .select("id", { count: "exact", head: true })
+            .eq("doctor_id", doctorId)
+            .eq("patient_phone", from)
+            .neq("status", "cancelled");
+          if ((phoneCount ?? 0) >= MAX_PER_PHONE_PER_DOCTOR) {
+            await reply(`عذراً، تم الوصول للحد الأقصى من الحجوزات لهذا الطبيب من نفس الرقم (${MAX_PER_PHONE_PER_DOCTOR} مرضى كحد أقصى).`);
+            await reset(); break;
+          }
         }
 
         const { data: schedules } = await supabase.from("schedules")

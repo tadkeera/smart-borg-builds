@@ -62,7 +62,7 @@ function DoctorsPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const toggleField = async (d: Doctor, field: "allow_next_week" | "allow_two_weeks" | "is_paused", value: boolean) => {
+  const toggleField = async (d: Doctor, field: "allow_next_week" | "allow_two_weeks" | "is_paused" | "has_booking_limit", value: boolean) => {
     try { await adminAction("doctor.update", { id: d.id, [field]: value }); load(); }
     catch (e: any) { toast.error(e.message); }
   };

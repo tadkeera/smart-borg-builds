@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
           allow_next_week: !!payload.allow_next_week,
           allow_two_weeks: !!payload.allow_two_weeks,
           is_paused: !!payload.is_paused,
+          has_booking_limit: payload.has_booking_limit === undefined ? true : !!payload.has_booking_limit,
         }).select().single();
         if (error) throw error; result.data = data;
         await audit("doctor", data.id, { name: data.name, speciality: data.speciality });
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
       }
       case "doctor.update": {
         const upd: any = {};
-        ["name","speciality","allow_next_week","allow_two_weeks","is_paused"].forEach(k => { if (k in payload) upd[k] = payload[k]; });
+        ["name","speciality","allow_next_week","allow_two_weeks","is_paused","has_booking_limit"].forEach(k => { if (k in payload) upd[k] = payload[k]; });
         const { data, error } = await admin.from("doctors").update(upd).eq("id", payload.id).select().single();
         if (error) throw error; result.data = data;
         await audit("doctor", payload.id, { changes: upd });

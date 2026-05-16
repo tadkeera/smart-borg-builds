@@ -19,6 +19,7 @@ export const Route = createFileRoute("/dashboard/doctors")({
 interface Doctor {
   id: string; name: string; speciality: string;
   allow_next_week: boolean; allow_two_weeks: boolean; is_paused: boolean;
+  has_booking_limit: boolean;
 }
 
 function DoctorsPage() {
@@ -30,6 +31,7 @@ function DoctorsPage() {
   const [allowNext, setAllowNext] = useState(false);
   const [allowTwo, setAllowTwo] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [hasLimit, setHasLimit] = useState(true);
 
   const load = async () => {
     const { data } = await supabase.from("doctors").select("*").order("name");
@@ -38,17 +40,17 @@ function DoctorsPage() {
   useEffect(() => { load(); }, []);
 
   const startAdd = () => {
-    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setAllowTwo(false); setPaused(false); setOpen(true);
+    setEditing(null); setName(""); setSpec(""); setAllowNext(false); setAllowTwo(false); setPaused(false); setHasLimit(true); setOpen(true);
   };
   const startEdit = (d: Doctor) => {
     setEditing(d); setName(d.name); setSpec(d.speciality);
-    setAllowNext(d.allow_next_week); setAllowTwo(d.allow_two_weeks); setPaused(d.is_paused); setOpen(true);
+    setAllowNext(d.allow_next_week); setAllowTwo(d.allow_two_weeks); setPaused(d.is_paused); setHasLimit(d.has_booking_limit ?? true); setOpen(true);
   };
 
   const save = async () => {
     if (!name.trim() || !spec.trim()) { toast.error("الاسم والتخصص مطلوبان"); return; }
     try {
-      const payload: any = { name, speciality: spec, allow_next_week: allowNext, allow_two_weeks: allowTwo, is_paused: paused };
+      const payload: any = { name, speciality: spec, allow_next_week: allowNext, allow_two_weeks: allowTwo, is_paused: paused, has_booking_limit: hasLimit };
       if (editing) {
         await adminAction("doctor.update", { id: editing.id, ...payload });
         toast.success("تم التعديل");
@@ -60,7 +62,7 @@ function DoctorsPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const toggleField = async (d: Doctor, field: "allow_next_week" | "allow_two_weeks" | "is_paused", value: boolean) => {
+  const toggleField = async (d: Doctor, field: "allow_next_week" | "allow_two_weeks" | "is_paused" | "has_booking_limit", value: boolean) => {
     try { await adminAction("doctor.update", { id: d.id, [field]: value }); load(); }
     catch (e: any) { toast.error(e.message); }
   };
@@ -96,6 +98,10 @@ function DoctorsPage() {
                 <Switch checked={allowTwo} onCheckedChange={setAllowTwo} />
               </label>
               <label className="flex items-center justify-between gap-2 rounded-md border p-3">
+                <span className="text-sm">تطبيق حد أقصى 2 مرضى لنفس الرقم</span>
+                <Switch checked={hasLimit} onCheckedChange={setHasLimit} />
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-md border p-3">
                 <span className="text-sm">إيقاف مؤقت لجميع الحجوزات لهذا الطبيب</span>
                 <Switch checked={paused} onCheckedChange={setPaused} />
               </label>
@@ -117,18 +123,20 @@ function DoctorsPage() {
                 <th className="p-3 font-semibold">التخصص</th>
                 <th className="p-3 font-semibold">أسبوع قادم</th>
                 <th className="p-3 font-semibold">١٤ يوم</th>
+                <th className="p-3 font-semibold">حد ٢ لكل رقم</th>
                 <th className="p-3 font-semibold">الحالة</th>
                 <th className="p-3 font-semibold">إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {doctors.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا يوجد أطباء بعد</td></tr>}
+              {doctors.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا يوجد أطباء بعد</td></tr>}
               {doctors.map(d => (
                 <tr key={d.id} className="border-t hover:bg-muted/40">
                   <td className="p-3 font-medium">د. {d.name}</td>
                   <td className="p-3">{d.speciality}</td>
                   <td className="p-3"><Switch checked={d.allow_next_week} onCheckedChange={(v) => toggleField(d, "allow_next_week", v)} /></td>
                   <td className="p-3"><Switch checked={d.allow_two_weeks} onCheckedChange={(v) => toggleField(d, "allow_two_weeks", v)} /></td>
+                  <td className="p-3"><Switch checked={d.has_booking_limit ?? true} onCheckedChange={(v) => toggleField(d, "has_booking_limit", v)} /></td>
                   <td className="p-3">
                     <label className="inline-flex items-center gap-2">
                       <Switch checked={!d.is_paused} onCheckedChange={(v) => toggleField(d, "is_paused", !v)} />

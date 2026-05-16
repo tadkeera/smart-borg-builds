@@ -19,6 +19,7 @@ export const Route = createFileRoute("/dashboard/doctors")({
 interface Doctor {
   id: string; name: string; speciality: string;
   allow_next_week: boolean; allow_two_weeks: boolean; is_paused: boolean;
+  has_booking_limit: boolean;
 }
 
 function DoctorsPage() {

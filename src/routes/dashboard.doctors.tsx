@@ -13,7 +13,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/doctors")({
-  component: () => <RequireAuth adminOnly><DoctorsPage /></RequireAuth>
+  component: () => <RequireAuth permission="doctors"><DoctorsPage /></RequireAuth>
 });
 
 interface Doctor {

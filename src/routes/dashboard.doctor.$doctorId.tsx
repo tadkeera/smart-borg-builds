@@ -11,7 +11,9 @@ import { useAuth } from "@/lib/auth";
 import { ArrowRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/dashboard/doctor/$doctorId")({ component: DoctorBookingsPage });
+export const Route = createFileRoute("/dashboard/doctor/$doctorId")({
+  component: () => <RequireAuth permission="index"><DoctorBookingsPage /></RequireAuth>
+});
 
 interface Doctor { id: string; name: string; speciality: string; }
 interface Booking {

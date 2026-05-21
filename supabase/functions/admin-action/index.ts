@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
 
       // Users
       case "user.create": {
-        const { account_type, password, display_name } = payload ?? {};
+        const { account_type, password, display_name, permissions } = payload ?? {};
         if (!password || password.length < 6) return json({ error: "كلمة المرور 6 أحرف على الأقل" }, 400);
         if (!display_name || String(display_name).trim().length < 2) return json({ error: "الاسم مطلوب" }, 400);
 
@@ -193,29 +193,64 @@ Deno.serve(async (req) => {
         const newId = created.user!.id;
         await admin.from("user_roles").delete().eq("user_id", newId);
         const role = account_type === "admin" ? "admin" : "receptionist";
-        const { error: rErr } = await admin.from("user_roles").insert({ user_id: newId, role });
+        const { error: rErr } = await admin.from("user_roles").insert({
+          user_id: newId,
+          role,
+          permissions: permissions || {
+            index: true,
+            doctors: true,
+            schedules: true,
+            whatsapp: true,
+            reports: true,
+            audit: true,
+            account: true
+          }
+        });
         if (rErr) throw rErr;
         result.data = { id: newId, username, email, role };
         await audit("user", newId, { role, email, username, display_name: userMeta.display_name });
         break;
       }
+      case "user.update": {
+        const { id, permissions, display_name } = payload ?? {};
+        if (!id) return json({ error: "ID مطلوب" }, 400);
+
+        if (display_name) {
+          const { error: uErr } = await admin.auth.admin.updateUserById(id, {
+            user_metadata: { display_name: String(display_name).trim() }
+          });
+          if (uErr) throw uErr;
+        }
+
+        if (permissions) {
+          const { error: rErr } = await admin.from("user_roles").update({ permissions }).eq("user_id", id);
+          if (rErr) throw rErr;
+        }
+
+        await audit("user", id, { changes: { display_name, permissions } });
+        break;
+      }
       case "user.list": {
         const { data: users } = await admin.auth.admin.listUsers();
-        const { data: roles } = await admin.from("user_roles").select("user_id,role");
-        const map = new Map<string, string[]>();
+        const { data: roles } = await admin.from("user_roles").select("user_id,role,permissions");
+        const map = new Map<string, { roles: string[], permissions: any }>();
         (roles ?? []).forEach(r => {
-          const list = map.get(r.user_id) ?? [];
-          list.push(r.role); map.set(r.user_id, list);
+          const entry = map.get(r.user_id) ?? { roles: [], permissions: null };
+          entry.roles.push(r.role);
+          if (r.permissions) entry.permissions = r.permissions;
+          map.set(r.user_id, entry);
         });
         result.data = (users.users ?? []).map(u => {
           const email = u.email ?? "";
           const isReception = email.endsWith("@borg.local");
+          const entry = map.get(u.id);
           return {
             id: u.id,
             email,
             username: isReception ? email.replace(/@borg\.local$/, "") : null,
             display_name: (u.user_metadata as any)?.display_name ?? null,
-            roles: map.get(u.id) ?? [],
+            roles: entry?.roles ?? [],
+            permissions: entry?.permissions ?? null,
           };
         });
         break;

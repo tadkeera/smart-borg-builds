@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RefreshCcw, ChevronLeft, Users, CalendarDays, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/dashboard/")({ component: BookingsOverview });
+export const Route = createFileRoute("/dashboard/")({
+  component: () => <RequireAuth permission="index"><BookingsOverview /></RequireAuth>
+});
 
 interface Doctor { id: string; name: string; speciality: string; is_paused: boolean; }
 interface Schedule { id: string; doctor_id: string; day_of_week: number; shift: string; max_capacity: number; is_paused: boolean; }

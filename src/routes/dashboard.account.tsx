@@ -16,10 +16,24 @@ export const Route = createFileRoute("/dashboard/account")({
   component: () => <RequireAuth adminOnly><AccountPage /></RequireAuth>
 });
 
+import { Permissions } from "@/lib/auth";
+import { Checkbox } from "@/components/ui/checkbox";
+
 interface ManagedUser {
   id: string; email: string; username: string | null;
   display_name: string | null; roles: string[];
+  permissions: Permissions | null;
 }
+
+const PERMISSION_LABELS: Record<keyof Permissions, string> = {
+  index: "الرئيسية",
+  doctors: "الأطباء",
+  schedules: "الجداول",
+  whatsapp: "الواتساب",
+  reports: "التقارير",
+  audit: "السجلات",
+  account: "الحساب",
+};
 
 function AccountPage() {
   const { user } = useAuth();
@@ -75,6 +89,18 @@ function AccountPage() {
     if (!confirm("حذف هذا الحساب نهائياً؟")) return;
     try { await adminAction("user.delete", { id }); toast.success("تم الحذف"); load(); }
     catch (e: any) { toast.error(e.message); }
+  };
+
+  const updatePermissions = async (user: ManagedUser, key: keyof Permissions, value: boolean) => {
+    const newPerms = { ...(user.permissions || {
+      index: true, doctors: true, schedules: true, whatsapp: true, reports: true, audit: true, account: true
+    }), [key]: value };
+    
+    try {
+      await adminAction("user.update", { id: user.id, permissions: newPerms });
+      toast.success("تم تحديث الصلاحيات");
+      load();
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const changeMyPassword = async (e: React.FormEvent) => {
@@ -149,20 +175,40 @@ function AccountPage() {
                 <th className="p-3">الاسم</th>
                 <th className="p-3">الدخول</th>
                 <th className="p-3">الدور</th>
+                <th className="p-3">الصلاحيات (للموظف)</th>
                 <th className="p-3">إجراء</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin inline" /></td></tr>}
-              {!loading && users.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>}
+              {loading && <tr><td colSpan={5} className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin inline" /></td></tr>}
+              {!loading && users.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">لا يوجد مستخدمون</td></tr>}
               {users.map(u => (
                 <tr key={u.id} className="border-t">
-                  <td className="p-3">{u.display_name ?? "—"}</td>
-                  <td className="p-3 font-mono text-xs" dir="ltr">{u.username ?? u.email}</td>
-                  <td className="p-3">
+                  <td className="p-3 align-top">{u.display_name ?? "—"}</td>
+                  <td className="p-3 align-top font-mono text-xs" dir="ltr">{u.username ?? u.email}</td>
+                  <td className="p-3 align-top">
                     {u.roles.includes("admin") ? "مدير النظام" : u.roles.includes("receptionist") ? "موظف استقبال" : "—"}
                   </td>
                   <td className="p-3">
+                    {u.roles.includes("receptionist") && (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        {(Object.keys(PERMISSION_LABELS) as Array<keyof Permissions>).map(key => (
+                          <div key={key} className="flex items-center gap-2">
+                            <Checkbox 
+                              id={`perm-${u.id}-${key}`}
+                              checked={u.permissions?.[key] ?? true}
+                              onCheckedChange={(checked) => updatePermissions(u, key, !!checked)}
+                            />
+                            <Label htmlFor={`perm-${u.id}-${key}`} className="text-[10px] cursor-pointer">
+                              {PERMISSION_LABELS[key]}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {u.roles.includes("admin") && <span className="text-xs text-muted-foreground italic">صلاحيات كاملة</span>}
+                  </td>
+                  <td className="p-3 align-top">
                     {u.id !== user?.id && (
                       <Button size="sm" variant="ghost" onClick={() => removeUser(u.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />

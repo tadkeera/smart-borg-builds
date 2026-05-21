@@ -13,7 +13,7 @@ import { Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/schedules")({
-  component: () => <RequireAuth adminOnly><SchedulesPage /></RequireAuth>
+  component: () => <RequireAuth permission="schedules"><SchedulesPage /></RequireAuth>
 });
 
 interface Doctor { id: string; name: string; allow_next_week: boolean; }

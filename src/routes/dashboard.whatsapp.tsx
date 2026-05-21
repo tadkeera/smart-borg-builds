@@ -12,7 +12,7 @@ import { Plus, Trash2, Copy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/whatsapp")({
-  component: () => <RequireAuth adminOnly><WhatsAppPage /></RequireAuth>
+  component: () => <RequireAuth permission="whatsapp"><WhatsAppPage /></RequireAuth>
 });
 
 interface WaInstance {

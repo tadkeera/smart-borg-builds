@@ -19,7 +19,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/dashboard/reports")({
-  component: () => <RequireAuth adminOnly><ReportsPage /></RequireAuth>,
+  component: () => <RequireAuth permission="reports"><ReportsPage /></RequireAuth>,
 });
 
 interface Doctor { id: string; name: string; speciality: string; }

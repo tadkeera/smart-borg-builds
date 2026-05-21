@@ -3,18 +3,22 @@ import { useAuth } from "@/lib/auth";
 import { CalendarDays, Users, ClipboardList, MessageCircle, Settings, BarChart3, ScrollText } from "lucide-react";
 
 const items = [
-  { to: "/dashboard", label: "الحجوزات", icon: ClipboardList, adminOnly: false },
-  { to: "/dashboard/reports", label: "التقارير", icon: BarChart3, adminOnly: true },
-  { to: "/dashboard/doctors", label: "الأطباء", icon: Users, adminOnly: true },
-  { to: "/dashboard/schedules", label: "الجداول", icon: CalendarDays, adminOnly: true },
-  { to: "/dashboard/whatsapp", label: "الواتساب", icon: MessageCircle, adminOnly: true },
-  { to: "/dashboard/audit", label: "سجل التدقيق", icon: ScrollText, adminOnly: true },
-  { to: "/dashboard/account", label: "الحساب", icon: Settings, adminOnly: true },
+  { to: "/dashboard", label: "الحجوزات", icon: ClipboardList, permissionKey: "index" as const },
+  { to: "/dashboard/reports", label: "التقارير", icon: BarChart3, permissionKey: "reports" as const },
+  { to: "/dashboard/doctors", label: "الأطباء", icon: Users, permissionKey: "doctors" as const },
+  { to: "/dashboard/schedules", label: "الجداول", icon: CalendarDays, permissionKey: "schedules" as const },
+  { to: "/dashboard/whatsapp", label: "الواتساب", icon: MessageCircle, permissionKey: "whatsapp" as const },
+  { to: "/dashboard/audit", label: "سجل التدقيق", icon: ScrollText, permissionKey: "audit" as const },
+  { to: "/dashboard/account", label: "الحساب", icon: Settings, permissionKey: "account" as const },
 ];
 
 export function AppNav() {
-  const { isAdmin } = useAuth();
-  const visible = items.filter(i => !i.adminOnly || isAdmin);
+  const { isAdmin, permissions } = useAuth();
+  const visible = items.filter(i => {
+    if (isAdmin) return true;
+    if (!permissions) return false;
+    return permissions[i.permissionKey] === true;
+  });
   return (
     <nav className="border-b bg-card">
       <div className="mx-auto max-w-7xl overflow-x-auto px-2">

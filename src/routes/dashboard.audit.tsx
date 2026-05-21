@@ -12,7 +12,7 @@ import { RefreshCcw, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/audit")({
-  component: () => <RequireAuth adminOnly><AuditPage /></RequireAuth>,
+  component: () => <RequireAuth permission="audit"><AuditPage /></RequireAuth>,
 });
 
 interface LogRow {
